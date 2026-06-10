@@ -1,0 +1,52 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "echomate"
+version = "0.1.0"
+description = "A personalized, real-time voice-powered Daily Life Companion and Memory Assistant built on LiveKit Agents."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+authors = [
+    { name = "EchoMate Team" },
+]
+
+dependencies = [
+    "livekit-agents>=0.8.0",
+    "livekit-plugins-deepgram>=0.6.0",
+    "livekit-plugins-cartesia>=0.4.0",
+    "livekit-plugins-silero>=0.6.0",
+    "litellm>=1.40.0",
+    "pydantic>=2.5.0",
+    "pydantic-settings>=2.1.0",
+    "llama-index>=0.10.0",
+    "chromadb>=0.4.0",
+    "mcp>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=4.1.0",
+    "hypothesis>=6.90.0",
+    "ruff>=0.2.0",
+    "mypy>=1.8.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true

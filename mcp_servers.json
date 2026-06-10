@@ -1,0 +1,25 @@
+{
+  "servers": [
+    {
+      "name": "weather",
+      "command": "uvx",
+      "args": ["weather-mcp-server"],
+      "env": {"API_KEY": "${WEATHER_API_KEY}"},
+      "enabled": true
+    },
+    {
+      "name": "calendar",
+      "command": "uvx",
+      "args": ["google-calendar-mcp-server"],
+      "env": {"GOOGLE_CREDENTIALS": "${GOOGLE_CREDENTIALS_PATH}"},
+      "enabled": true
+    },
+    {
+      "name": "web-search",
+      "command": "uvx",
+      "args": ["tavily-mcp-server"],
+      "env": {"TAVILY_API_KEY": "${TAVILY_API_KEY}"},
+      "enabled": true
+    }
+  ]
+}
