@@ -1,7 +1,7 @@
 import { useState } from "react";
 import clsx from "clsx";
-import { Copy, Check, RotateCcw } from "lucide-react";
-import { Message } from "../types";
+import { Copy, Check, RotateCcw, FileText, Image, Table, FileCode } from "lucide-react";
+import { Message, Attachment } from "../types";
 
 interface ChatMessageProps {
   message: Message;
@@ -32,6 +32,26 @@ function renderContent(text: string): React.ReactNode[] {
       );
     return <span key={i}>{seg}</span>;
   });
+}
+
+function AttachmentChip({ att }: { att: Attachment }) {
+  const icon = (() => {
+    switch (att.type) {
+      case "pdf":   return <FileText size={11} strokeWidth={2} />;
+      case "image": return <Image    size={11} strokeWidth={2} />;
+      case "csv":   return <Table    size={11} strokeWidth={2} />;
+      case "doc":   return <FileText size={11} strokeWidth={2} />;
+      default:      return <FileCode size={11} strokeWidth={2} />;
+    }
+  })();
+  const size = att.size < 1024 ? `${att.size}B` : att.size < 1024 * 1024 ? `${(att.size / 1024).toFixed(0)}KB` : `${(att.size / (1024 * 1024)).toFixed(1)}MB`;
+  return (
+    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/10 text-[11px] text-white/80">
+      <span className="text-white/60">{icon}</span>
+      <span className="truncate max-w-[100px]">{att.name}</span>
+      <span className="text-white/40">{size}</span>
+    </div>
+  );
 }
 
 /* ─── Component ─────────────────────────────────────────────────────────── */
@@ -68,6 +88,15 @@ export default function ChatMessage({ message }: ChatMessageProps) {
 
       {/* Bubble + action bar */}
       <div className={clsx("flex flex-col gap-1 max-w-[76%]", isUser && "items-end")}>
+
+        {/* Attachment chips (user messages only) */}
+        {isUser && message.attachments && message.attachments.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mb-1.5">
+            {message.attachments.map((att) => (
+              <AttachmentChip key={att.id} att={att} />
+            ))}
+          </div>
+        )}
 
         {/* Bubble */}
         <div

@@ -1,0 +1,310 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300..800;1,14..32,300..500&display=swap");
+@import "tailwindcss";
+
+/* ─── Liquid Glass Design System ─────────────────────────────────────────── */
+@theme inline {
+  /* Void & Surface Layers */
+  --color-void:      #04040a;
+  --color-surface-0: #070710;
+  --color-surface-1: #0d0d1a;
+  --color-surface-2: #131326;
+  --color-surface-3: #1a1a35;
+
+  /* Glass Layers */
+  --color-glass-1:  rgba(255,255,255,0.04);
+  --color-glass-2:  rgba(255,255,255,0.07);
+  --color-glass-3:  rgba(255,255,255,0.10);
+
+  /* Text */
+  --color-text-primary:   rgba(255,255,255,0.95);
+  --color-text-secondary: rgba(255,255,255,0.65);
+  --color-text-muted:     rgba(255,255,255,0.35);
+  --color-text-ghost:     rgba(255,255,255,0.18);
+
+  /* Border */
+  --color-border-glass:   rgba(255,255,255,0.09);
+  --color-border-bright:  rgba(255,255,255,0.18);
+
+  /* Emotion Accents */
+  --color-emotion-idle:      #6366f1;
+  --color-emotion-listening: #06b6d4;
+  --color-emotion-thinking:  #f59e0b;
+  --color-emotion-speaking:  #10b981;
+  --color-emotion-happy:     #eab308;
+  --color-emotion-concerned: #60a5fa;
+  --color-emotion-excited:   #8b5cf6;
+  --color-emotion-calm:      #14b8a6;
+
+  /* Fixed Accents */
+  --color-accent-indigo:  #6366f1;
+  --color-accent-cyan:    #06b6d4;
+  --color-accent-amber:   #f59e0b;
+  --color-accent-emerald: #10b981;
+  --color-accent-violet:  #8b5cf6;
+  --color-accent-rose:    #f43f5e;
+
+  /* Shadows */
+  --shadow-glass: 0 0 0 1px rgba(255,255,255,0.05), 0 4px 6px -1px rgba(0,0,0,0.5), 0 10px 15px -3px rgba(0,0,0,0.4), 0 20px 25px -5px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.12);
+  --shadow-glass-hover: 0 0 0 1px rgba(255,255,255,0.10), 0 8px 12px -2px rgba(0,0,0,0.5), 0 16px 24px -4px rgba(0,0,0,0.4), 0 32px 40px -8px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.18);
+  --shadow-orb: 0 0 60px -10px var(--current-glow, rgba(99,102,241,0.5)), 0 0 120px -20px var(--current-glow, rgba(99,102,241,0.3)), 0 0 200px -40px var(--current-glow, rgba(99,102,241,0.2));
+  --shadow-deep: 0 25px 50px -12px rgba(0,0,0,0.8);
+
+  /* Font */
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", monospace;
+}
+
+/* ─── Emotion-reactive CSS variables ────────────────────────────────────── */
+:root {
+  --current-accent:  #6366f1;
+  --current-glow:    rgba(99,102,241,0.45);
+  --current-glow-sm: rgba(99,102,241,0.2);
+  --bg-hue-shift:    0deg;
+  --bg-brightness:   1;
+  color-scheme: dark;
+}
+
+/* Emotion state classes injected on <html> */
+html[data-emotion="listening"] {
+  --current-accent:  #06b6d4;
+  --current-glow:    rgba(6,182,212,0.45);
+  --current-glow-sm: rgba(6,182,212,0.2);
+  --bg-brightness:   1.04;
+}
+html[data-emotion="thinking"] {
+  --current-accent:  #f59e0b;
+  --current-glow:    rgba(245,158,11,0.45);
+  --current-glow-sm: rgba(245,158,11,0.2);
+  --bg-hue-shift:    10deg;
+}
+html[data-emotion="speaking"] {
+  --current-accent:  #10b981;
+  --current-glow:    rgba(16,185,129,0.45);
+  --current-glow-sm: rgba(16,185,129,0.2);
+  --bg-brightness:   1.02;
+}
+html[data-emotion="happy"] {
+  --current-accent:  #eab308;
+  --current-glow:    rgba(234,179,8,0.45);
+  --current-glow-sm: rgba(234,179,8,0.2);
+  --bg-brightness:   1.06;
+}
+html[data-emotion="concerned"] {
+  --current-accent:  #60a5fa;
+  --current-glow:    rgba(96,165,250,0.4);
+  --current-glow-sm: rgba(96,165,250,0.18);
+  --bg-brightness:   0.97;
+}
+html[data-emotion="excited"] {
+  --current-accent:  #8b5cf6;
+  --current-glow:    rgba(139,92,246,0.5);
+  --current-glow-sm: rgba(139,92,246,0.22);
+}
+html[data-emotion="calm"] {
+  --current-accent:  #14b8a6;
+  --current-glow:    rgba(20,184,166,0.4);
+  --current-glow-sm: rgba(20,184,166,0.18);
+}
+
+/* ─── Base Styles ────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #04040a;
+  color: rgba(255,255,255,0.95);
+  font-family: "Inter", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root, main { width: 100%; height: 100%; }
+
+/* ─── Liquid Glass Utility ───────────────────────────────────────────────── */
+.glass {
+  background: rgba(255,255,255,0.04);
+  backdrop-filter: blur(40px) saturate(200%) brightness(1.08);
+  -webkit-backdrop-filter: blur(40px) saturate(200%) brightness(1.08);
+  border: 1px solid rgba(255,255,255,0.09);
+  box-shadow: var(--shadow-glass);
+  border-radius: 24px;
+}
+
+.glass-hover {
+  transition: box-shadow 0.3s ease, border-color 0.3s ease, transform 0.3s ease;
+}
+.glass-hover:hover {
+  border-color: rgba(255,255,255,0.16);
+  box-shadow: var(--shadow-glass-hover);
+  transform: translateY(-2px);
+}
+
+.glass-inner {
+  background: rgba(255,255,255,0.025);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 16px;
+}
+
+/* Specular top edge highlight */
+.glass-specular::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    135deg,
+    rgba(255,255,255,0.10) 0%,
+    rgba(255,255,255,0.04) 30%,
+    transparent 60%
+  );
+  pointer-events: none;
+}
+
+/* Emotion-reactive border glow */
+.glass-accent {
+  border-color: var(--current-glow-sm);
+  box-shadow: var(--shadow-glass), 0 0 20px -5px var(--current-glow-sm);
+}
+
+/* ─── Orb Shadow ─────────────────────────────────────────────────────────── */
+.orb-glow {
+  filter: drop-shadow(0 0 40px var(--current-glow)) drop-shadow(0 0 80px var(--current-glow-sm));
+}
+
+/* ─── Text Gradient ──────────────────────────────────────────────────────── */
+.gradient-text {
+  background: linear-gradient(135deg, var(--current-accent) 0%, rgba(255,255,255,0.9) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ─── Scrollbars ─────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.10); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.20); }
+
+/* ─── Keyframes ──────────────────────────────────────────────────────────── */
+@keyframes breath {
+  0%, 100% { transform: scale(1);    opacity: 1; }
+  50%       { transform: scale(1.03); opacity: 0.92; }
+}
+
+@keyframes breath-ring {
+  0%, 100% { transform: scale(1);    opacity: 0.5; }
+  50%       { transform: scale(1.08); opacity: 0.25; }
+}
+
+@keyframes pulse-ring {
+  0%   { transform: scale(0.95); opacity: 0.7; }
+  60%  { transform: scale(1.15); opacity: 0; }
+  100% { transform: scale(1.15); opacity: 0; }
+}
+
+@keyframes pulse-ring-outer {
+  0%   { transform: scale(0.95); opacity: 0.4; }
+  60%  { transform: scale(1.28); opacity: 0; }
+  100% { transform: scale(1.28); opacity: 0; }
+}
+
+@keyframes blob-drift-a {
+  0%, 100% { transform: translate(-58%, -50%) scale(1); }
+  33%       { transform: translate(-54%, -55%) scale(1.08); }
+  66%       { transform: translate(-62%, -46%) scale(0.95); }
+}
+
+@keyframes blob-drift-b {
+  0%, 100% { transform: translate(-42%, -50%) scale(1); }
+  40%       { transform: translate(-47%, -54%) scale(1.05); }
+  70%       { transform: translate(-38%, -46%) scale(0.97); }
+}
+
+@keyframes blob-drift-c {
+  0%, 100% { transform: translateX(-50%) scale(1); }
+  50%       { transform: translateX(-52%) scale(1.06); }
+}
+
+@keyframes float-up {
+  0%   { opacity: 0; transform: translateY(16px) scale(0.95); }
+  15%  { opacity: 1; transform: translateY(0)    scale(1); }
+  80%  { opacity: 1; transform: translateY(-8px) scale(1); }
+  100% { opacity: 0; transform: translateY(-20px) scale(0.96); }
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes slide-in-right {
+  from { opacity: 0; transform: translateX(20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes wave-bar {
+  0%, 100% { transform: scaleY(0.25); }
+  50%       { transform: scaleY(1); }
+}
+
+@keyframes thinking-dot {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+  40%           { transform: scale(1);   opacity: 1; }
+}
+
+@keyframes streak-pop {
+  0%   { transform: scale(0.5); opacity: 0; }
+  70%  { transform: scale(1.15); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes badge-glow {
+  0%, 100% { box-shadow: 0 0 8px var(--current-glow-sm); }
+  50%       { box-shadow: 0 0 20px var(--current-glow); }
+}
+
+@keyframes particle-float {
+  0%   { transform: translateY(0) translateX(0); opacity: 0.3; }
+  25%  { opacity: 0.7; }
+  50%  { transform: translateY(-30px) translateX(15px); opacity: 0.5; }
+  75%  { opacity: 0.3; }
+  100% { transform: translateY(0) translateX(0); opacity: 0.3; }
+}
+
+@keyframes check-draw {
+  from { stroke-dashoffset: 24; }
+  to   { stroke-dashoffset: 0; }
+}
+
+@keyframes task-complete {
+  0%   { opacity: 1; transform: translateX(0); }
+  20%  { transform: translateX(4px); }
+  100% { opacity: 0; transform: translateX(-100%) scaleX(0.9); }
+}
+
+@keyframes number-count {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+

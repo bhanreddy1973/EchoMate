@@ -1,7 +1,7 @@
 import { useRef, useEffect } from "react";
 import { PanelLeftOpen, Zap, CheckSquare, Clock, Calendar, Trash2, MoreHorizontal, Phone, PhoneOff } from "lucide-react";
 import { useState } from "react";
-import { Message, Thread } from "../types";
+import { Message, Thread, Attachment, Skill } from "../types";
 import ChatMessage from "./ChatMessage";
 import VoiceOrb from "./VoiceOrb";
 import Composer from "./Composer";
@@ -13,9 +13,17 @@ interface ChatAreaProps {
   messages: Message[];
   isAIStreaming: boolean;
   sidebarOpen: boolean;
+  activeSkill: Skill | null;
+  connectedCount: number;
+  attachments: Attachment[];
   onToggleSidebar: () => void;
-  onSend: (content: string) => void;
+  onSend: (content: string, attachments: Attachment[]) => void;
   onClearThread: () => void;
+  onOpenSkills: () => void;
+  onOpenConnectors: () => void;
+  onDeactivateSkill: () => void;
+  onAddAttachment: (file: File) => void;
+  onRemoveAttachment: (id: string) => void;
 }
 
 export default function ChatArea({
@@ -23,9 +31,17 @@ export default function ChatArea({
   messages,
   isAIStreaming,
   sidebarOpen,
+  activeSkill,
+  connectedCount,
+  attachments,
   onToggleSidebar,
   onSend,
   onClearThread,
+  onOpenSkills,
+  onOpenConnectors,
+  onDeactivateSkill,
+  onAddAttachment,
+  onRemoveAttachment,
 }: ChatAreaProps) {
   const scrollRef   = useRef<HTMLDivElement>(null);
   const bottomRef   = useRef<HTMLDivElement>(null);
@@ -91,7 +107,19 @@ export default function ChatArea({
               End Session
             </button>
           ) : (
-            <span className="text-[12px] text-text-muted px-2">Connecting...</span>
+            /* Connecting / Reconnecting animated state */
+            <button
+              disabled
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[12px] font-medium bg-accent-purple/10 text-accent-purple border border-accent-purple/25 cursor-wait transition-all"
+            >
+              {/* Pulsing dots animation */}
+              <span className="flex items-center gap-[3px]">
+                <span className="w-[5px] h-[5px] rounded-full bg-accent-purple animate-[pulse-dot_1.4s_ease-in-out_infinite]" />
+                <span className="w-[5px] h-[5px] rounded-full bg-accent-purple animate-[pulse-dot_1.4s_ease-in-out_0.2s_infinite]" />
+                <span className="w-[5px] h-[5px] rounded-full bg-accent-purple animate-[pulse-dot_1.4s_ease-in-out_0.4s_infinite]" />
+              </span>
+              {connectionState === "reconnecting" ? "Reconnecting" : "Connecting"}
+            </button>
           )}
 
           <ConnectionBadge state={connectionState} onReconnect={connect} />
@@ -127,7 +155,7 @@ export default function ChatArea({
         {messages.length === 0 ? (
           /* Full-height empty / welcome state */
           <div className="h-full">
-            <EmptyState agentStatus={agentStatus} onSuggestion={onSend} />
+            <EmptyState agentStatus={agentStatus} onSuggestion={(text) => onSend(text, [])} />
           </div>
         ) : (
           /*
@@ -161,7 +189,15 @@ export default function ChatArea({
           agentStatus={agentStatus}
           connectionState={connectionState}
           isAIStreaming={isAIStreaming}
+          activeSkill={activeSkill}
+          connectedCount={connectedCount}
+          attachments={attachments}
           onSend={onSend}
+          onOpenSkills={onOpenSkills}
+          onOpenConnectors={onOpenConnectors}
+          onDeactivateSkill={onDeactivateSkill}
+          onAddAttachment={onAddAttachment}
+          onRemoveAttachment={onRemoveAttachment}
         />
       </div>
     </main>

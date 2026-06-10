@@ -1,43 +1,29 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import Sidebar from "./components/Sidebar";
 import ChatArea from "./components/ChatArea";
-import { Message, Thread } from "./types";
+import ConnectorsPanel from "./components/ConnectorsPanel";
+import SkillsPanel from "./components/SkillsPanel";
+import { Message, Thread, Attachment, Connector, Skill } from "./types";
 
-/* ─── Mock AI responses ──────────────────────────────────────────────────── */
-function getAIResponse(input: string): string {
-  const q = input.toLowerCase();
+/* ─── Chat API ────────────────────────────────────────────────────────────── */
+const CHAT_API_URL = "http://127.0.0.1:8081/api/chat";
 
-  if (/\b(hi|hello|hey|hio|heya|howdy|sup)\b/.test(q))
-    return "Hey! Great to hear from you.\n\nI'm **EchoMate** — your voice-powered daily companion. I can help with:\n\n• **Morning briefings** and schedule overviews\n• **Tasks & reminders** — just say what you need\n• **Weekly planning** and habit tracking\n• **Voice conversations** — speak naturally, I'll listen\n\nWhat's on your mind today?";
+async function fetchAIResponse(
+  messages: { role: string; content: string }[],
+): Promise<string> {
+  const res = await fetch(CHAT_API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ messages }),
+  });
 
-  if (/morning|briefing|today|schedule|day ahead/.test(q))
-    return "Good morning! Here's your day at a glance:\n\n**9:00 AM** — Team standup (15 min)\n**11:30 AM** — Client call with Acme Corp\n**2:00 PM** — Design review session\n**4:30 PM** — 1:1 with manager\n\nYou have **3 unread messages** and **2 tasks due today**. Want me to read them out?";
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: "Unknown error" }));
+    throw new Error(err.error || `HTTP ${res.status}`);
+  }
 
-  if (/add.*task|new task|create task|todo|to.do/.test(q))
-    return "Task added! ✓\n\nYour current task list:\n1. Review Q3 metrics — *due today*\n2. Update project proposal — *due tomorrow*\n3. Schedule team offsite — *this week*\n4. **" + input.replace(/^(add|create|new)\s+(a\s+|the\s+)?task:?\s*/i, "").trim() + "**\n\nWant me to set a deadline or priority?";
-
-  if (/remind|reminder|alert/.test(q))
-    return "Reminder set! I'll make sure you don't miss it.\n\nYou can get specific:\n• *\"Remind me in 30 minutes\"*\n• *\"Set a reminder for 3 PM\"*\n• *\"Remind me every Monday morning\"*\n\nAnything else to track?";
-
-  if (/week|weekly|this week|next week/.test(q))
-    return "Here's your week overview:\n\n**Mon** — 3 meetings · 2 deadlines\n**Tue** — Focus block 2–5 PM *(blocked)*\n**Wed** — All-hands 10 AM\n**Thu** — Client presentations × 2\n**Fri** — 1:1s + weekly review\n\nLooking busy mid-week. Want me to suggest schedule adjustments?";
-
-  if (/habit|track|streak|daily/.test(q))
-    return "Here's your habit tracker:\n\n🟢 **Morning workout** — 12-day streak!\n🟢 **Reading** — 8 days\n🟡 **Meditation** — 3 days *(broke streak)*\n🔴 **Evening walk** — missed yesterday\n\nYou're doing great overall! Shall I set a reminder to rebuild your streak?";
-
-  if (/help|what can you|features|what do you do/.test(q))
-    return "Here's everything I can do:\n\n🗓 **Schedule** — briefings, events, planning\n✅ **Tasks** — add, complete, prioritize\n⏰ **Reminders** — smart time-based alerts\n📊 **Habits** — track streaks and progress\n🎙 **Voice** — speak naturally, I'll understand\n\nTry *\"Morning briefing\"* or *\"How's my week?\"* to get started!";
-
-  if (/weather|forecast/.test(q))
-    return "I don't have live weather data just yet — that's on the roadmap!\n\nFor now I'd suggest checking your local forecast app. Want me to add a *\"Check weather\"* reminder to your morning routine?";
-
-  const fallbacks = [
-    `Got it — I've noted *\"${input.slice(0, 60)}${input.length > 60 ? "…" : ""}\"*.\n\nWould you like me to add this as a **task**, set a **reminder**, or is there something specific you'd like to explore?`,
-    `Interesting point! Right now my core skills cover **scheduling, tasks, and reminders** — but I'm always learning.\n\nIs there something in those areas I can help you tackle right now?`,
-    `I hear you. I've logged that for context.\n\n**Tip:** You can also just *speak to me* using the microphone — sometimes it's faster than typing. What else can I help with?`,
-    `Thanks for sharing! Here's a quick question back: would you like me to track this as a **goal** or turn it into an **action item** for this week?`,
-  ];
-  return fallbacks[Math.floor(Math.random() * fallbacks.length)];
+  const data = await res.json();
+  return data.response || "I couldn't generate a response. Please try again.";
 }
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
@@ -68,6 +54,29 @@ function hydrateThreads(raw: RawThread[]): Thread[] {
   return raw.map((t) => ({ ...t, timestamp: new Date(t.timestamp) }));
 }
 
+/* ─── Connectors & Skills constants ─────────────────────────────────────── */
+const DEFAULT_CONNECTORS: Connector[] = [
+  { id: "gcal",    name: "Google Calendar", description: "Access your schedule and events",   iconName: "CalendarDays", connected: false, category: "Productivity", color: "#4285F4" },
+  { id: "gmail",   name: "Gmail",           description: "Read and summarize your emails",    iconName: "Mail",         connected: false, category: "Productivity", color: "#EA4335" },
+  { id: "notion",  name: "Notion",          description: "Search and update your docs",       iconName: "BookOpen",     connected: false, category: "Productivity", color: "#000000" },
+  { id: "todoist", name: "Todoist",         description: "Manage your tasks and projects",    iconName: "CheckSquare",  connected: false, category: "Productivity", color: "#DB4035" },
+  { id: "slack",   name: "Slack",           description: "Catch up on messages and channels", iconName: "Hash",         connected: false, category: "Communication", color: "#4A154B" },
+  { id: "zoom",    name: "Zoom",            description: "Summarize meeting transcripts",     iconName: "Video",        connected: false, category: "Communication", color: "#2D8CFF" },
+  { id: "github",  name: "GitHub",          description: "Review PRs, issues, and code",      iconName: "Code2",        connected: false, category: "Development",   color: "#24292E" },
+  { id: "linear",  name: "Linear",          description: "Track engineering projects",        iconName: "Layers",       connected: false, category: "Development",   color: "#5E6AD2" },
+  { id: "gdrive",  name: "Google Drive",    description: "Search and read your files",        iconName: "FolderOpen",   connected: false, category: "Files",         color: "#34A853" },
+  { id: "spotify", name: "Spotify",         description: "Control music and get mood playlists", iconName: "Music",    connected: false, category: "Lifestyle",     color: "#1DB954" },
+];
+
+const DEFAULT_SKILLS: Skill[] = [
+  { id: "morning",  name: "Morning Coach",      description: "Start your day with energy and clarity",       category: "Wellness",     emoji: "🌅", color: "#f59e0b", prompt: "You are a motivating morning coach. Help the user plan their day, set intentions, and start with energy." },
+  { id: "meeting",  name: "Meeting Assistant",  description: "Prepare agendas and capture action items",     category: "Productivity", emoji: "📋", color: "#3b82f6", prompt: "You are a professional meeting assistant. Help structure meetings, create agendas, and track decisions." },
+  { id: "learning", name: "Learning Buddy",     description: "Explain concepts and quiz your knowledge",     category: "Education",    emoji: "🧠", color: "#8b5cf6", prompt: "You are a patient tutor. Explain concepts clearly, use analogies, and ask questions to check understanding." },
+  { id: "writing",  name: "Writing Assistant",  description: "Draft, edit, and refine your writing",         category: "Creative",     emoji: "✍️", color: "#10b981", prompt: "You are an expert writing assistant. Help draft, edit, and improve writing with clarity and style." },
+  { id: "fitness",  name: "Fitness Coach",      description: "Plan workouts and track healthy habits",        category: "Health",       emoji: "💪", color: "#ef4444", prompt: "You are an encouraging fitness coach. Suggest workouts, track progress, and motivate healthy choices." },
+  { id: "code",     name: "Code Reviewer",      description: "Review code, suggest improvements, debug",     category: "Tech",         emoji: "💻", color: "#6366f1", prompt: "You are a senior code reviewer. Review code for correctness, performance, readability, and security." },
+];
+
 /* ─── Seed data ──────────────────────────────────────────────────────────── */
 const SEED_ID = "seed-1";
 const SEED_THREAD: Thread = {
@@ -94,6 +103,11 @@ export default function App() {
   );
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [connectors, setConnectors]   = useState<Connector[]>(DEFAULT_CONNECTORS);
+  const [skills]                      = useState<Skill[]>(DEFAULT_SKILLS);
+  const [activeSkillId, setActiveSkillId] = useState<string | null>(null);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [panelOpen, setPanelOpen]     = useState<"connectors" | "skills" | null>(null);
   const streamingRef = useRef(false);
 
   const messages = useMemo(
@@ -101,7 +115,9 @@ export default function App() {
     [threadMessages, activeThreadId],
   );
 
-  const isAIStreaming = messages.some((m) => m.isStreaming);
+  const isAIStreaming    = messages.some((m) => m.isStreaming);
+  const activeSkill      = skills.find((s) => s.id === activeSkillId) ?? null;
+  const connectedCount   = connectors.filter((c) => c.connected).length;
 
   /* Persist whenever threads or messages change */
   useEffect(() => { writeLS(LS_THREADS, threads); }, [threads]);
@@ -134,16 +150,13 @@ export default function App() {
     );
   }, []);
 
-  /* ── AI simulation ───────────────────────────────────────────────────── */
+  /* ── AI response via backend LLM ──────────────────────────────────────── */
   const simulateAI = useCallback(
     async (threadId: string, userInput: string) => {
       if (streamingRef.current) return;
       streamingRef.current = true;
 
       const aiId = `ai-${Date.now()}`;
-
-      /* Thinking delay */
-      await sleep(550 + Math.random() * 350);
 
       appendMessage(threadId, {
         id: aiId,
@@ -153,39 +166,94 @@ export default function App() {
         isStreaming: true,
       });
 
-      /* Pause before stream starts (feels more natural) */
-      await sleep(450 + Math.random() * 300);
+      try {
+        // Build conversation history for context
+        const history = (threadMessages[threadId] ?? [])
+          .filter((m) => !m.isStreaming)
+          .map((m) => ({ role: m.role, content: m.content }));
+        history.push({ role: "user", content: userInput });
 
-      const response = getAIResponse(userInput);
+        const response = await fetchAIResponse(history);
 
-      /* Stream character by character */
-      for (let i = 1; i <= response.length; i++) {
-        patchMessage(threadId, aiId, { content: response.slice(0, i) });
-        await sleep(8 + Math.random() * 12);
+        // Stream character by character for a nice UX
+        for (let i = 1; i <= response.length; i++) {
+          patchMessage(threadId, aiId, { content: response.slice(0, i) });
+          await sleep(8 + Math.random() * 12);
+        }
+
+        patchMessage(threadId, aiId, { isStreaming: false });
+        bumpThread(threadId, response.replace(/\*\*/g, "").replace(/\*/g, ""));
+      } catch (err) {
+        const errorMsg =
+          err instanceof Error ? err.message : "Something went wrong";
+        patchMessage(threadId, aiId, {
+          content: `⚠️ ${errorMsg}\n\nPlease make sure the backend server is running (\`python token_server.py\`).`,
+          isStreaming: false,
+        });
+        bumpThread(threadId, "Error getting response");
       }
 
-      patchMessage(threadId, aiId, { isStreaming: false });
-      bumpThread(threadId, response.replace(/\*\*/g, "").replace(/\*/g, ""));
       streamingRef.current = false;
     },
-    [appendMessage, patchMessage, bumpThread],
+    [appendMessage, patchMessage, bumpThread, threadMessages],
   );
 
   /* ── User actions ────────────────────────────────────────────────────── */
   const handleSend = useCallback(
-    (content: string) => {
+    (content: string, pendingAttachments: Attachment[]) => {
       const msg: Message = {
         id: `user-${Date.now()}`,
         role: "user",
         content,
         timestamp: new Date(),
+        attachments: pendingAttachments.length > 0 ? [...pendingAttachments] : undefined,
       };
       appendMessage(activeThreadId, msg);
-      bumpThread(activeThreadId, content);
-      simulateAI(activeThreadId, content);
+      bumpThread(activeThreadId, content || `[${pendingAttachments.length} file(s)]`);
+      setAttachments([]);
+      const aiInput = [
+        activeSkill ? `[Skill: ${activeSkill.name}] ` : "",
+        content,
+        pendingAttachments.length > 0 ? ` [Attached files: ${pendingAttachments.map((a) => a.name).join(", ")}]` : "",
+      ].join("");
+      simulateAI(activeThreadId, aiInput);
     },
-    [activeThreadId, appendMessage, bumpThread, simulateAI],
+    [activeThreadId, appendMessage, bumpThread, simulateAI, activeSkill],
   );
+
+  const handleToggleConnector = useCallback((id: string) => {
+    setConnectors((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, connected: !c.connected } : c)),
+    );
+  }, []);
+
+  const handleActivateSkill = useCallback((id: string) => {
+    setActiveSkillId(id);
+    setPanelOpen(null);
+  }, []);
+
+  const handleDeactivateSkill = useCallback(() => {
+    setActiveSkillId(null);
+  }, []);
+
+  const handleAddAttachment = useCallback((file: File) => {
+    const type: Attachment["type"] = (() => {
+      if (file.type.startsWith("image/")) return "image";
+      if (file.type === "application/pdf" || file.name.endsWith(".pdf")) return "pdf";
+      if (file.name.match(/\.(csv)$/i)) return "csv";
+      if (file.name.match(/\.(doc|docx)$/i)) return "doc";
+      if (file.name.match(/\.(txt|md|json|ts|tsx|js|jsx|py)$/i)) return "text";
+      return "other";
+    })();
+    setAttachments((prev) => [
+      ...prev,
+      { id: `att-${Date.now()}-${Math.random()}`, name: file.name, type, size: file.size },
+    ]);
+  }, []);
+
+  const handleRemoveAttachment = useCallback((id: string) => {
+    setAttachments((prev) => prev.filter((a) => a.id !== id));
+  }, []);
 
   const handleNewThread = useCallback(() => {
     const t: Thread = {
@@ -262,10 +330,35 @@ export default function App() {
         messages={messages}
         isAIStreaming={isAIStreaming}
         sidebarOpen={sidebarOpen}
+        activeSkill={activeSkill}
+        connectedCount={connectedCount}
+        attachments={attachments}
         onToggleSidebar={() => setSidebarOpen((v) => !v)}
         onSend={handleSend}
         onClearThread={handleClearThread}
+        onOpenSkills={() => setPanelOpen("skills")}
+        onOpenConnectors={() => setPanelOpen("connectors")}
+        onDeactivateSkill={handleDeactivateSkill}
+        onAddAttachment={handleAddAttachment}
+        onRemoveAttachment={handleRemoveAttachment}
       />
+
+      {panelOpen === "connectors" && (
+        <ConnectorsPanel
+          connectors={connectors}
+          onToggle={handleToggleConnector}
+          onClose={() => setPanelOpen(null)}
+        />
+      )}
+      {panelOpen === "skills" && (
+        <SkillsPanel
+          skills={skills}
+          activeSkillId={activeSkillId}
+          onActivate={handleActivateSkill}
+          onDeactivate={handleDeactivateSkill}
+          onClose={() => setPanelOpen(null)}
+        />
+      )}
     </div>
   );
 }
