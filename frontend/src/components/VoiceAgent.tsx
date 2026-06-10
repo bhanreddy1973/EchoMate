@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import ConnectionStatus, { ConnectionState } from "./ConnectionStatus";
 import StatusIndicator, { AgentStatus } from "./StatusIndicator";
 import Transcript, { Message } from "./Transcript";
@@ -15,7 +15,7 @@ const MAX_BACKOFF_MS = 30000;
 export default function VoiceAgent({ serverUrl, getToken }: VoiceAgentProps) {
   const [connectionState, setConnectionState] = useState<ConnectionState>("disconnected");
   const [agentStatus, setAgentStatus] = useState<AgentStatus>("idle");
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages] = useState<Message[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const reconnectAttemptsRef = useRef(0);
@@ -38,7 +38,8 @@ export default function VoiceAgent({ serverUrl, getToken }: VoiceAgentProps) {
     setError(null);
 
     try {
-      const token = await Promise.race([
+      // @ts-expect-error token used in full LiveKit implementation
+      const _token = await Promise.race([
         getToken(),
         new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error("Connection timeout")), 10_000)
@@ -91,13 +92,6 @@ export default function VoiceAgent({ serverUrl, getToken }: VoiceAgentProps) {
     backoffRef.current = INITIAL_BACKOFF_MS;
     connect();
   }, [connect]);
-
-  const addMessage = (role: "user" | "assistant", content: string) => {
-    setMessages((prev) => [
-      ...prev,
-      { role, content, id: `${Date.now()}-${Math.random()}` },
-    ]);
-  };
 
   return (
     <div

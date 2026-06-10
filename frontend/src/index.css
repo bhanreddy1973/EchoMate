@@ -1,0 +1,192 @@
+@import "tailwindcss";
+
+/* ─── Design Tokens ─────────────────────────────────────────────────────── */
+@theme {
+  /* Surfaces — depth from darkest (void) to elevated */
+  --color-void:             #06060d;
+  --color-surface-primary:  #09090f;
+  --color-surface-secondary:#0d0d1b;
+  --color-surface-tertiary: #121224;
+  --color-surface-hover:    #191930;
+  --color-surface-active:   #1f1f3a;
+
+  /* Borders */
+  --color-border-primary:   #1c1c34;
+  --color-border-secondary: #141428;
+  --color-border-focus:     #6366f1;
+
+  /* Accent palette */
+  --color-accent-blue:      #6366f1;   /* indigo — primary CTA */
+  --color-accent-purple:    #a78bfa;   /* violet — secondary/speaking */
+  --color-accent-green:     #34d399;   /* emerald — listening */
+  --color-accent-amber:     #fbbf24;   /* amber — thinking */
+  --color-accent-red:       #f87171;   /* rose — error */
+
+  /* Typography */
+  --color-text-primary:     #f0f0fa;
+  --color-text-secondary:   #8080a8;
+  --color-text-muted:       #50506a;
+
+  /* Font */
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+}
+
+/* ─── Base ──────────────────────────────────────────────────────────────── */
+@layer base {
+  *, *::before, *::after { box-sizing: border-box; }
+
+  html, body, #root {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background-color: var(--color-surface-primary);
+    color: var(--color-text-primary);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  ::selection {
+    background: rgba(99, 102, 241, 0.28);
+    color: var(--color-text-primary);
+  }
+
+  ::-webkit-scrollbar        { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track  { background: transparent; }
+  ::-webkit-scrollbar-thumb  { background: var(--color-border-primary); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--color-text-muted); }
+}
+
+/* ─── Utilities ─────────────────────────────────────────────────────────── */
+@layer utilities {
+
+  /* Glassmorphism */
+  .glass {
+    background: rgba(13, 13, 27, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+  .glass-subtle {
+    background: rgba(13, 13, 27, 0.6);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  /* Borders as utilities (because Tailwind can't easily do rgba borders) */
+  .border-glass { border: 1px solid rgba(255, 255, 255, 0.06); }
+  .border-glass-strong { border: 1px solid rgba(255, 255, 255, 0.10); }
+  .border-b-glass { border-bottom: 1px solid rgba(255, 255, 255, 0.06); }
+
+  /* Glow */
+  .glow-blue   { box-shadow: 0 0 24px rgba(99,102,241,0.45),   0 0 80px rgba(99,102,241,0.12); }
+  .glow-purple { box-shadow: 0 0 24px rgba(167,139,250,0.45),  0 0 80px rgba(167,139,250,0.12); }
+  .glow-green  { box-shadow: 0 0 24px rgba(52,211,153,0.45),   0 0 80px rgba(52,211,153,0.12); }
+  .glow-amber  { box-shadow: 0 0 24px rgba(251,191,36,0.35),   0 0 60px rgba(251,191,36,0.10); }
+
+  /* Gradient text (hero headings) */
+  .gradient-text {
+    background: linear-gradient(135deg, #c4b5fd 0%, #818cf8 35%, #60a5fa 65%, #34d399 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Logo gradient */
+  .logo-gradient {
+    background: linear-gradient(135deg, #6366f1 0%, #a78bfa 50%, #34d399 100%);
+  }
+
+  /* Floating composer shadow */
+  .composer-shadow {
+    box-shadow:
+      0 -1px 0 rgba(255,255,255,0.04),
+      0 8px 32px rgba(0,0,0,0.55),
+      0 2px 8px  rgba(0,0,0,0.30);
+  }
+
+  /* Depth shadows */
+  .shadow-depth-sm {
+    box-shadow: 0 1px 3px rgba(0,0,0,0.35), 0 1px 2px rgba(0,0,0,0.25);
+  }
+  .shadow-depth-md {
+    box-shadow: 0 4px 16px rgba(0,0,0,0.45), 0 1px 4px rgba(0,0,0,0.30);
+  }
+}
+
+/* ─── Keyframes ─────────────────────────────────────────────────────────── */
+
+/* Voice orb — inner ring */
+@keyframes pulse-ring {
+  0%   { transform: scale(0.88); opacity: 0.65; }
+  100% { transform: scale(2.4);  opacity: 0; }
+}
+
+/* Voice orb — outer ring (slower, larger) */
+@keyframes pulse-ring-outer {
+  0%   { transform: scale(0.92); opacity: 0.35; }
+  100% { transform: scale(3.0);  opacity: 0; }
+}
+
+/* Orb floating bob */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-8px); }
+}
+
+/* Audio wave bars */
+@keyframes wave {
+  0%, 100% { transform: scaleY(0.15); }
+  50%       { transform: scaleY(1); }
+}
+
+/* Entry — fade up */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Entry — fade in */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Button appear — scale in */
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.65); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* Sidebar slide in */
+@keyframes slide-right {
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* Ambient glow blob movement */
+@keyframes ambient-drift {
+  0%,  100% { transform: translate(0px, 0px)   scale(1.00); }
+  33%        { transform: translate(40px, -25px) scale(1.06); }
+  66%        { transform: translate(-20px, 18px) scale(0.95); }
+}
+@keyframes ambient-drift-b {
+  0%,  100% { transform: translate(0px, 0px)    scale(1.00); }
+  33%        { transform: translate(-30px, 20px) scale(1.04); }
+  66%        { transform: translate(25px, -15px) scale(0.97); }
+}
+
+/* Status dot pulse (connected) */
+@keyframes dot-pulse {
+  0%, 100% { box-shadow: 0 0 0 0   rgba(52,211,153, 0.7); }
+  50%       { box-shadow: 0 0 0 4px rgba(52,211,153, 0); }
+}
+
+/* Streaming cursor blink */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
