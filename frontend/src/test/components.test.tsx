@@ -1,6 +1,5 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
-import React from "react";
 import StatusIndicator from "../components/StatusIndicator";
 import Transcript from "../components/Transcript";
 import ConnectionStatus from "../components/ConnectionStatus";

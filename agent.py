@@ -11,9 +11,65 @@ import logging
 from pathlib import Path
 from typing import Any
 
+import os
+import ssl
+
 from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).parent / ".env")
+
+# Disable SSL verification if SSL_VERIFY is set to false
+if os.getenv("SSL_VERIFY", "true").lower() == "false":
+    # Disable for httpx / requests / urllib3
+    os.environ["CURL_CA_BUNDLE"] = ""
+    os.environ["REQUESTS_CA_BUNDLE"] = ""
+    os.environ.pop("SSL_CERT_FILE", None)
+
+    # Disable for litellm
+    os.environ["LITELLM_SSL_VERIFY"] = "false"
+
+    # Create a permissive SSL context as the default
+    ssl._create_default_https_context = ssl._create_unverified_context
+
+    # Monkey-patch aiohttp to disable SSL verification globally
+    # This is needed for LiveKit agent's WebSocket connections
+    import aiohttp
+
+    _original_tcp_connector_init = aiohttp.TCPConnector.__init__
+
+    def _patched_tcp_connector_init(self, *args, **kwargs):  # type: ignore[no-untyped-def]
+        kwargs.setdefault("ssl", False)
+        _original_tcp_connector_init(self, *args, **kwargs)
+
+    aiohttp.TCPConnector.__init__ = _patched_tcp_connector_init  # type: ignore[method-assign]
+
+    # Also patch aiohttp.ClientSession to use ssl=False by default on ws_connect and request
+    _original_session_init = aiohttp.ClientSession.__init__
+
+    def _patched_session_init(self, *args, **kwargs):  # type: ignore[no-untyped-def]
+        if "connector" not in kwargs or kwargs["connector"] is None:
+            kwargs["connector"] = aiohttp.TCPConnector(ssl=False)
+        _original_session_init(self, *args, **kwargs)
+
+    aiohttp.ClientSession.__init__ = _patched_session_init  # type: ignore[method-assign]
+
+    # Monkey-patch httpx to disable SSL verification globally
+    # This is needed for the OpenAI SDK used by livekit-plugins-openai
+    import httpx
+
+    _original_httpx_client_init = httpx.Client.__init__
+    _original_httpx_async_client_init = httpx.AsyncClient.__init__
+
+    def _patched_httpx_client_init(self, *args, **kwargs):  # type: ignore[no-untyped-def]
+        kwargs.setdefault("verify", False)
+        _original_httpx_client_init(self, *args, **kwargs)
+
+    def _patched_httpx_async_client_init(self, *args, **kwargs):  # type: ignore[no-untyped-def]
+        kwargs.setdefault("verify", False)
+        _original_httpx_async_client_init(self, *args, **kwargs)
+
+    httpx.Client.__init__ = _patched_httpx_client_init  # type: ignore[method-assign]
+    httpx.AsyncClient.__init__ = _patched_httpx_async_client_init  # type: ignore[method-assign]
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +84,7 @@ try:
     from livekit.plugins import deepgram as deepgram_plugin
     from livekit.plugins import cartesia as cartesia_plugin
     from livekit.plugins import silero as silero_plugin
+    from livekit.plugins import openai as openai_plugin
 
     _LIVEKIT_AVAILABLE = True
 except ImportError:  # pragma: no cover
@@ -85,25 +142,19 @@ class EchoMateAgent:
 
         stm = ShortTermMemory(max_tokens=self.config.memory.short_term_token_limit)
         ltm = LongTermMemory(
-            persist_dir=self.config.memory.chroma_persist_dir,
-            top_k=self.config.memory.long_term_top_k,
-            min_score=self.config.memory.min_similarity_score,
+            chroma_persist_dir=self.config.memory.chroma_persist_dir,
         )
         self._memory_manager = MemoryManager(stm, ltm)
 
         self._model_router = ModelRouter(
-            nvidia_api_key=self.config.llm.nvidia_nim_api_key,
-            openrouter_api_key=self.config.llm.openrouter_api_key,
-            timeout=self.config.llm.timeout_seconds,
+            timeout_seconds=self.config.llm.timeout_seconds,
             max_fallbacks=self.config.llm.max_fallback_attempts,
         )
 
         self._mcp_manager = MCPManager(
-            servers_config_path=self.config.mcp.servers_config_path,
-            connection_timeout=self.config.mcp.connection_timeout,
             tool_call_timeout=self.config.mcp.tool_call_timeout,
         )
-        await self._mcp_manager.initialize()
+        await self._mcp_manager.initialize(servers=[])
 
         self._tool_registry = ToolRegistry(mcp_manager=self._mcp_manager)
         self._personality_manager = PersonalityManager(profile=self.config.personality)
@@ -245,39 +296,36 @@ async def entrypoint(ctx: JobContext) -> None:
         logger.error("Failed to initialise EchoMate components: %s", e)
         return
 
-    try:
-        cfg = echomate.config
+    cfg = echomate.config
 
-        agent = Agent(
-            instructions=(
-                "You are EchoMate, a friendly and helpful voice companion. "
-                "You assist with daily tasks, reminders, habits, and general questions. "
-                "Be concise, warm, and conversational."
-            ),
-            stt=deepgram_plugin.STT(
-                api_key=cfg.asr.api_key,
-                model=cfg.asr.model,
-                language=cfg.asr.language,
-            ),
-            tts=cartesia_plugin.TTS(
-                api_key=cfg.tts.api_key,
-                voice=cfg.tts.voice_id,
-            ),
-            vad=silero_plugin.VAD.load(min_silence_duration=0.6),
-            allow_interruptions=True,
-        )
+    agent = Agent(
+        instructions=(
+            "You are EchoMate, a friendly and helpful voice companion. "
+            "You assist with daily tasks, reminders, habits, and general questions. "
+            "Be concise, warm, and conversational."
+        ),
+        llm=openai_plugin.LLM(
+            model="nvidia/nemotron-mini-4b-instruct",
+            base_url="https://integrate.api.nvidia.com/v1",
+            api_key=cfg.llm.nvidia_nim_api_key,
+        ),
+        stt=deepgram_plugin.STT(
+            api_key=cfg.asr.api_key,
+            model=cfg.asr.model,
+            language=cfg.asr.language,
+        ),
+        tts=deepgram_plugin.TTS(
+            api_key=cfg.asr.api_key,
+        ),
+        vad=silero_plugin.VAD.load(min_silence_duration=0.6),
+        allow_interruptions=True,
+    )
 
-        session = AgentSession()
+    session = AgentSession()
+    await session.start(agent=agent, room=ctx.room)
+    logger.info("EchoMate session started")
 
-        await session.start(agent=agent, room=ctx.room)
-        logger.info("EchoMate session started")
-
-        await session.say("Hello! I'm EchoMate. How can I help you today?")
-
-    except Exception as e:
-        logger.error("Voice pipeline error: %s", e)
-    finally:
-        await echomate.on_session_end()
+    await session.say("Hello! I'm EchoMate. How can I help you today?")
 
 
 if __name__ == "__main__":

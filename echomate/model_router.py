@@ -160,13 +160,6 @@ class AllModelsFailedError(Exception):
 # Default model registry for EchoMate free model endpoints
 DEFAULT_MODEL_REGISTRY: list[ModelEndpoint] = [
     ModelEndpoint(
-        name="nvidia_nim/nemotron-4-340b",
-        provider="nvidia_nim",
-        model_id="nvidia_nim/nvidia/nemotron-4-340b-instruct",
-        tier="reasoning",
-        priority=1,
-    ),
-    ModelEndpoint(
         name="nvidia_nim/nemotron-mini-4b",
         provider="nvidia_nim",
         model_id="nvidia_nim/nvidia/nemotron-mini-4b-instruct",
@@ -174,25 +167,25 @@ DEFAULT_MODEL_REGISTRY: list[ModelEndpoint] = [
         priority=1,
     ),
     ModelEndpoint(
-        name="openrouter/llama-3.1-8b",
+        name="openrouter/nex-n2-pro",
         provider="openrouter_free",
-        model_id="openrouter/meta-llama/llama-3.1-8b-instruct:free",
-        tier="fast",
-        priority=2,
+        model_id="openrouter/nex-agi/nex-n2-pro:free",
+        tier="reasoning",
+        priority=1,
     ),
     ModelEndpoint(
-        name="openrouter/llama-3.1-70b",
+        name="openrouter/nemotron-3-ultra",
         provider="openrouter_free",
-        model_id="openrouter/meta-llama/llama-3.1-70b-instruct:free",
+        model_id="openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
         tier="reasoning",
         priority=2,
     ),
     ModelEndpoint(
-        name="openrouter/mistral-7b",
+        name="openrouter/qwen3-coder",
         provider="openrouter_free",
-        model_id="openrouter/mistralai/mistral-7b-instruct:free",
+        model_id="openrouter/qwen/qwen3-coder:free",
         tier="fast",
-        priority=3,
+        priority=2,
     ),
 ]
 
