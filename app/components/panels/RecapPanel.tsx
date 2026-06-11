@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Trophy, Flame, Star, TrendingUp, ChevronRight } from "lucide-react";
 import GlassPanel from "./GlassPanel";
 import { CompletedItem } from "@/types";
+
+const RECAP_STORAGE_KEY = "echomate-recap";
 
 function makeCompleted(): CompletedItem[] {
   const now = Date.now();
@@ -33,12 +35,38 @@ function timeAgo(date: Date): string {
 
 const STREAK = 7;
 const WEEKLY_GOAL = 80;
-const WEEKLY_DONE = 62;
 
-export default function RecapPanel() {
+export default function RecapPanel({ newCompletions = [] }: { newCompletions?: CompletedItem[] }) {
   const [expanded, setExpanded] = useState(false);
   /* Lazy init — Date.now() only runs client-side */
-  const [allItems] = useState<CompletedItem[]>(() => makeCompleted());
+  const [baseItems] = useState<CompletedItem[]>(() => makeCompleted());
+
+  // Load persisted weekly done count after mount
+  const [persistedCount, setPersistedCount] = useState<number>(0);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(RECAP_STORAGE_KEY);
+      if (stored) {
+        setPersistedCount(JSON.parse(stored).completedCount || 0);
+      }
+    } catch {}
+  }, []);
+
+  // Persist when new completions arrive
+  useEffect(() => {
+    if (newCompletions.length > 0) {
+      const total = persistedCount + newCompletions.length;
+      setPersistedCount(total);
+      try {
+        localStorage.setItem(RECAP_STORAGE_KEY, JSON.stringify({ completedCount: total }));
+      } catch {}
+    }
+  }, [newCompletions.length]);
+
+  // Merge new completions (from tasks) with existing items
+  const allItems = [...newCompletions, ...baseItems];
+  const weeklyDone = 62 + persistedCount;
   const items = expanded ? allItems : allItems.slice(0, 3);
 
   return (
@@ -74,7 +102,7 @@ export default function RecapPanel() {
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-[11px] text-text-secondary">Weekly goal</span>
             <span className="text-[11px] font-medium" style={{ color: "var(--current-accent)" }}>
-              {WEEKLY_DONE}/{WEEKLY_GOAL}
+              {weeklyDone}/{WEEKLY_GOAL}
             </span>
           </div>
           <div className="h-1.5 rounded-full bg-white/6 overflow-hidden">
@@ -82,7 +110,7 @@ export default function RecapPanel() {
               className="h-full rounded-full"
               style={{ background: "var(--current-accent)" }}
               initial={{ width: 0 }}
-              animate={{ width: `${(WEEKLY_DONE / WEEKLY_GOAL) * 100}%` }}
+              animate={{ width: `${(weeklyDone / WEEKLY_GOAL) * 100}%` }}
               transition={{ delay: 0.5, duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
             />
           </div>

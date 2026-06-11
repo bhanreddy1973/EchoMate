@@ -23,17 +23,31 @@ const QUICK_ACTIONS = [
   { id: "music",    label: "Music",    icon: Music,       color: "#e879f9",  prompt: "Play something uplifting" },
 ];
 
-const SUGGESTIONS: Record<string, string> = {
-  morning: "Start with your hardest task — your energy peaks now.",
-  afternoon: "Take a 5-minute walk to reset your focus.",
-  evening: "Reflect on 3 wins from today before you close out.",
+const SUGGESTIONS: Record<string, string[]> = {
+  morning: [
+    "Start with your hardest task — your energy peaks now.",
+    "Try a 5-minute meditation to set your focus for the day.",
+    "Block your first 90 minutes for deep work before meetings hit.",
+  ],
+  afternoon: [
+    "Take a 5-minute walk to reset your focus.",
+    "Grab some water — hydration boosts afternoon performance.",
+    "Review your morning wins to stay motivated for the rest.",
+  ],
+  evening: [
+    "Reflect on 3 wins from today before you close out.",
+    "Prepare tomorrow's top 3 tasks so you start fresh.",
+    "Wind down with something non-screen for better sleep.",
+  ],
 };
 
 function getSuggestion(): string {
   const h = new Date().getHours();
-  if (h < 12) return SUGGESTIONS.morning;
-  if (h < 17) return SUGGESTIONS.afternoon;
-  return SUGGESTIONS.evening;
+  const period = h < 12 ? "morning" : h < 17 ? "afternoon" : "evening";
+  const options = SUGGESTIONS[period];
+  // Pick a different suggestion based on the day to avoid repetition
+  const dayIndex = new Date().getDate() % options.length;
+  return options[dayIndex];
 }
 
 interface BriefPanelProps {
@@ -53,8 +67,50 @@ export default function BriefPanel({ onVoicePrompt }: BriefPanelProps) {
       setTimeString(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
     update();
     const interval = setInterval(update, 60_000);
+
+    // Try to get an AI-generated suggestion
+    fetchAiSuggestion();
+
     return () => clearInterval(interval);
   }, []);
+
+  const fetchAiSuggestion = async () => {
+    try {
+      // Get task context from localStorage
+      let taskContext = "";
+      if (typeof window !== "undefined") {
+        const stored = localStorage.getItem("echomate-tasks");
+        if (stored) {
+          const tasks = JSON.parse(stored);
+          const pending = tasks.filter((t: any) => !t.completed);
+          taskContext = `User has ${pending.length} pending tasks: ${pending.map((t: any) => t.text).slice(0, 3).join(", ")}`;
+        }
+      }
+
+      const h = new Date().getHours();
+      const timeOfDay = h < 12 ? "morning" : h < 17 ? "afternoon" : "evening";
+
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: [{
+            role: "user",
+            content: `Give me one short motivational tip (max 15 words) for this ${timeOfDay}. ${taskContext ? `Context: ${taskContext}` : ""}. Reply with ONLY the tip, no greeting or extra text.`
+          }]
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.response && data.response.length < 120) {
+          setSuggestion(data.response.replace(/^["']|["']$/g, "").trim());
+        }
+      }
+    } catch {
+      // Keep the static suggestion if AI is unavailable
+    }
+  };
 
   const handleAction = (prompt: string) => {
     onVoicePrompt?.(prompt);

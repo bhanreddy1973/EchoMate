@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Brain, Pin, Quote, Plus, X } from "lucide-react";
+import { Brain, Pin, Quote, Plus, X, RefreshCw } from "lucide-react";
 import GlassPanel from "./GlassPanel";
 import { MemoryCard } from "@/types";
 import { useEmotion } from "@/context/EmotionContext";
+
+const STORAGE_KEY = "echomate-memories";
 
 function makeMemories(): MemoryCard[] {
   const now = Date.now();
@@ -16,12 +18,24 @@ function makeMemories(): MemoryCard[] {
   ];
 }
 
-const EMOTION_FREQ = [
-  { emotion: "Happy",    pct: 38, color: "#eab308" },
-  { emotion: "Calm",     pct: 28, color: "#14b8a6" },
-  { emotion: "Excited",  pct: 20, color: "#8b5cf6" },
-  { emotion: "Concerned",pct: 14, color: "#60a5fa" },
-];
+function loadMemoriesFromStorage(): MemoryCard[] | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (!stored) return null;
+    const parsed = JSON.parse(stored);
+    return parsed.map((m: any) => ({ ...m, date: new Date(m.date) }));
+  } catch {
+    return null;
+  }
+}
+
+function saveMemoriesToStorage(memories: MemoryCard[]) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(memories));
+  } catch {}
+}
 
 export default function InsightsPanel() {
   const [pinnedOnly, setPinnedOnly] = useState(false);
@@ -29,7 +43,59 @@ export default function InsightsPanel() {
   const [addOpen, setAddOpen] = useState(false);
   const [newNote, setNewNote] = useState("");
   const [newTag, setNewTag] = useState("");
+  const [chromaAvailable, setChromaAvailable] = useState(false);
+  const [loading, setLoading] = useState(false);
   const { accentColor } = useEmotion();
+
+  // Hydrate from localStorage after mount
+  useEffect(() => {
+    const stored = loadMemoriesFromStorage();
+    if (stored) setAllMemories(stored);
+  }, []);
+
+  // Persist to localStorage whenever memories change
+  useEffect(() => {
+    saveMemoriesToStorage(allMemories);
+  }, [allMemories]);
+
+  // Fetch from ChromaDB on mount
+  useEffect(() => {
+    fetchChromaMemories();
+  }, []);
+
+  const fetchChromaMemories = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/memories");
+      if (!res.ok) throw new Error("Failed to fetch");
+      const data = await res.json();
+
+      setChromaAvailable(data.available);
+
+      if (data.available && data.memories.length > 0) {
+        const chromaCards: MemoryCard[] = data.memories.map((m: any) => ({
+          id: m.id,
+          content: m.content,
+          date: m.timestamp ? new Date(m.timestamp) : new Date(),
+          tags: m.tags || ["memory"],
+          pinned: m.pinned || false,
+        }));
+
+        // Merge: ChromaDB memories + local-only memories (avoid duplicates by content)
+        setAllMemories((prev) => {
+          const chromaContents = new Set(chromaCards.map((c) => c.content));
+          const localOnly = prev.filter((p) => !chromaContents.has(p.content));
+          const merged = [...chromaCards, ...localOnly];
+          return merged;
+        });
+      }
+    } catch {
+      // ChromaDB not available, use local data
+      setChromaAvailable(false);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const memories = pinnedOnly ? allMemories.filter((m) => m.pinned) : allMemories;
 
@@ -38,10 +104,20 @@ export default function InsightsPanel() {
   };
 
   const removeMemory = (id: string) => {
+    const memory = allMemories.find((m) => m.id === id);
     setAllMemories((prev) => prev.filter((m) => m.id !== id));
+
+    // Also remove from ChromaDB if available
+    if (chromaAvailable && memory) {
+      fetch("/api/memories/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: memory.content }),
+      }).catch(() => {});
+    }
   };
 
-  const addMemory = () => {
+  const addMemory = async () => {
     const content = newNote.trim();
     if (!content) return;
     const tags = newTag.trim() ? newTag.trim().split(/[\s,]+/).filter(Boolean) : [];
@@ -56,6 +132,15 @@ export default function InsightsPanel() {
     setNewNote("");
     setNewTag("");
     setAddOpen(false);
+
+    // Also store in ChromaDB if available
+    if (chromaAvailable) {
+      fetch("/api/memories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content, tags, category: "fact" }),
+      }).catch(() => {});
+    }
   };
 
   return (
@@ -68,6 +153,19 @@ export default function InsightsPanel() {
         </div>
         <div className="flex items-center gap-1.5">
           <Brain size={13} className="text-text-muted" />
+          {chromaAvailable && (
+            <motion.button
+              onClick={fetchChromaMemories}
+              whileTap={{ scale: 0.9 }}
+              animate={loading ? { rotate: 360 } : {}}
+              transition={loading ? { duration: 1, repeat: Infinity, ease: "linear" } : {}}
+              className="w-6 h-6 flex items-center justify-center rounded-md transition-colors"
+              style={{ color: "rgba(255,255,255,0.4)" }}
+              aria-label="Refresh from memory"
+            >
+              <RefreshCw size={10} />
+            </motion.button>
+          )}
           <motion.button
             onClick={() => setAddOpen((v) => !v)}
             whileTap={{ scale: 0.9 }}
@@ -124,26 +222,6 @@ export default function InsightsPanel() {
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Emotion frequency bars */}
-      <div className="space-y-1.5 shrink-0">
-        <span className="text-[10px] font-semibold uppercase tracking-[0.06em] text-text-muted">Emotional tone</span>
-        {EMOTION_FREQ.map(({ emotion, pct, color }) => (
-          <div key={emotion} className="flex items-center gap-2.5">
-            <span className="text-[10px] text-text-muted w-14 capitalize">{emotion}</span>
-            <div className="flex-1 h-1.5 rounded-full bg-white/6 overflow-hidden">
-              <motion.div
-                className="h-full rounded-full"
-                style={{ backgroundColor: color }}
-                initial={{ width: 0 }}
-                animate={{ width: `${pct}%` }}
-                transition={{ delay: 0.4, duration: 0.7, ease: "easeOut" }}
-              />
-            </div>
-            <span className="text-[10px] text-text-ghost w-6 text-right">{pct}%</span>
-          </div>
-        ))}
-      </div>
 
       {/* Memory cards */}
       <div className="flex-1 overflow-y-auto space-y-2 min-h-0">
