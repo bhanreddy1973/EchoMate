@@ -162,6 +162,7 @@ export default function ConversationBubbles() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          noSave: true,
           messages: [{
             role: "user",
             content: `You are EchoMate, a voice companion. It's ${timeOfDay}. Generate exactly 3 short insight messages (max 12 words each) as a JSON array of strings. They should be contextual observations about the user's work — like smart notifications. ${taskContext ? `User's tasks: ${taskContext}` : ""} Reply with ONLY the JSON array, nothing else. Example: ["Focus on design review next","Great progress on docs today","2 tasks left before evening"]`

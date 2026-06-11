@@ -327,7 +327,7 @@ export default function TasksPanel({ onTaskComplete }: { onTaskComplete?: (text:
         <div>
           <h2 className="text-[13px] font-semibold text-text-primary tracking-[-0.01em]">Today&apos;s Tasks</h2>
           <p className="text-[11px] text-text-muted mt-0.5">
-            {pending.length} remaining · {completedCount} done
+            {hydrated ? `${pending.length} remaining · ${completedCount} done` : "Loading…"}
           </p>
         </div>
         <ProgressArc value={pct} label={`${pct}%`} size={44} />
@@ -409,7 +409,7 @@ export default function TasksPanel({ onTaskComplete }: { onTaskComplete?: (text:
                   ) : (
                     <>
                       <p className="text-[12.5px] text-text-primary leading-snug">{task.text}</p>
-                      {due && (
+                      {hydrated && due && (
                         <div className="flex items-center gap-1 mt-1">
                           <Clock size={10} className={isOverdue ? "text-red-400 shrink-0" : "text-text-muted shrink-0"} />
                           <span className={`text-[10px] ${isOverdue ? "text-red-400 font-medium" : "text-text-muted"}`}>

@@ -1,4 +1,4 @@
-.PHONY: setup refresh-skills dev test test-frontend lint typecheck clean
+.PHONY: setup refresh-skills dev dev-all test test-frontend lint typecheck clean
 
 setup:
 	bash scripts/setup.sh
@@ -8,6 +8,18 @@ refresh-skills:
 
 dev:
 	.venv/bin/python agent.py dev
+
+dev-api:
+	.venv/bin/python token_server.py
+
+dev-app:
+	cd app && npm run dev
+
+dev-all:
+	@echo "Starting all services..."
+	@.venv/bin/python token_server.py &
+	@cd app && npm run dev &
+	@.venv/bin/python agent.py dev
 
 test:
 	.venv/bin/python -m pytest tests/ -v --tb=short

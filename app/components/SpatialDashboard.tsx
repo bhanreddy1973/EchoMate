@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Settings, Mic, MicOff, ChevronDown, LayoutGrid, MessageSquare, Loader2, Paperclip, Zap, Plug, X, FileText, Image as ImageIcon, ChevronRight, Plus, Link, ToggleRight, ToggleLeft } from "lucide-react";
+import { Sparkles, Settings, Mic, MicOff, ChevronDown, LayoutGrid, MessageSquare, Loader2, Paperclip, Zap, Plug, X, FileText, Image as ImageIcon, ChevronRight, Plus, Link, ToggleRight, ToggleLeft, History } from "lucide-react";
 import SkillsPanel, { ChatSkill, DEFAULT_SKILLS } from "./chat/SkillsPanel";
 import ConnectorsPanel, { ChatConnector, DEFAULT_CONNECTORS } from "./chat/ConnectorsPanel";
 import ReactMarkdown from "react-markdown";
@@ -13,6 +13,7 @@ import TasksPanel from "./panels/TasksPanel";
 import RecapPanel from "./panels/RecapPanel";
 import InsightsPanel from "./panels/InsightsPanel";
 import ReadingListPanel from "./panels/ReadingListPanel";
+import HistoryPanel from "./panels/HistoryPanel";
 import ConversationBubbles from "./voice/ConversationBubbles";
 import StatusBar from "./ui/StatusBar";
 import { useEmotion } from "@/context/EmotionContext";
@@ -76,6 +77,7 @@ export default function SpatialDashboard() {
       if (!data.token || !data.url) throw new Error("Invalid token response");
 
       // Create and connect to LiveKit room
+      const connectStart = Date.now();
       const room = new Room({
         adaptiveStream: true,
         dynacast: true,
@@ -88,6 +90,7 @@ export default function SpatialDashboard() {
           audioEl.id = `lk-audio-${participant.identity}`;
           document.body.appendChild(audioEl);
           setEmotion("speaking");
+          setMetrics({ connectionState: "connected", latencyMs: Date.now() - connectStart });
         }
       });
 
@@ -95,6 +98,18 @@ export default function SpatialDashboard() {
         const elements = track.detach();
         elements.forEach((el) => el.remove());
         setEmotion("listening");
+      });
+
+      room.on(RoomEvent.ActiveSpeakersChanged, (speakers) => {
+        const agentSpeaking = speakers.some((s) => s.identity !== "echomate-user");
+        const userSpeaking = speakers.some((s) => s.identity === "echomate-user");
+        if (agentSpeaking) {
+          setEmotion("speaking");
+        } else if (userSpeaking) {
+          setEmotion("listening");
+        } else {
+          setEmotion("thinking");
+        }
       });
 
       room.on(RoomEvent.Disconnected, () => {
@@ -309,6 +324,16 @@ function ChatOverlay({ onClose, seedPrompt = "" }: { onClose: () => void; seedPr
   const [loading, setLoading]         = useState(false);
   const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
   const [rightPanel, setRightPanel]   = useState<"skills" | "connectors" | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
+  const [modelTier, setModelTier] = useState<"auto" | "fast" | "reasoning" | "creative" | "technical" | "image">("auto");
+  const sessionIdRef = useRef<string | null>(null);
+
+  const startNewConversation = () => {
+    setMessages([{ role: "assistant", text: "Hey! I'm EchoMate. What's on your mind?" }]);
+    sessionIdRef.current = null;
+    setInput("");
+    setLoading(false);
+  };
 
   /* Skills state */
   const [skills, setSkills]           = useState<ChatSkill[]>(DEFAULT_SKILLS);
@@ -347,8 +372,9 @@ function ChatOverlay({ onClose, seedPrompt = "" }: { onClose: () => void; seedPr
         setLoading(true);
         setEmotion("thinking");
         try {
-          const res  = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages: next.map((m) => ({ role: m.role, content: m.text })) }) });
+          const res  = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages: next.map((m) => ({ role: m.role, content: m.text })), sessionId: sessionIdRef.current }) });
           const data = await res.json();
+          if (data.sessionId) sessionIdRef.current = data.sessionId;
           setMessages((p) => [...p, { role: "assistant", text: data.response ?? "Sorry, I couldn't get a response." }]);
           setEmotion("speaking");
           setTimeout(() => setEmotion("listening"), 2000);
@@ -374,14 +400,19 @@ function ChatOverlay({ onClose, seedPrompt = "" }: { onClose: () => void; seedPr
     setLoading(true);
     setEmotion("thinking");
     try {
-      const payload: { messages: { role: string; content: string }[]; skillContext?: string } = {
+      const payload: { messages: { role: string; content: string }[]; skillContext?: string; sessionId?: string | null; forceTier?: string } = {
         messages: next.map((m) => ({ role: m.role, content: m.text })),
+        sessionId: sessionIdRef.current,
       };
       if (skillContext) {
         payload.skillContext = skillContext;
       }
+      if (modelTier !== "auto") {
+        payload.forceTier = modelTier;
+      }
       const res  = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       const data = await res.json();
+      if (data.sessionId) sessionIdRef.current = data.sessionId;
       setMessages((p) => [...p, { role: "assistant", text: data.response ?? "Sorry, I couldn't get a response." }]);
       setEmotion("speaking");
       setTimeout(() => setEmotion("listening"), 2000);
@@ -537,12 +568,125 @@ function ChatOverlay({ onClose, seedPrompt = "" }: { onClose: () => void; seedPr
                 <ChevronRight size={9} style={{ transform: rightPanel === "connectors" ? "rotate(180deg)" : "none", transition: "transform 0.2s" }} />
               </button>
 
+              <div className="w-px h-3 bg-white/10 mx-0.5" />
+
+              <button
+                onClick={() => setShowHistory((v) => !v)}
+                className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-[11px] transition-all hover:bg-white/[0.07]"
+                style={{ color: showHistory ? accentColor : "rgba(255,255,255,0.45)", background: showHistory ? `${accentColor}12` : "transparent" }}>
+                <History size={12} strokeWidth={1.8} />
+                <span>History</span>
+              </button>
+
+              <div className="w-px h-3 bg-white/10 mx-0.5" />
+
+              <button
+                onClick={startNewConversation}
+                className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-[11px] transition-all hover:bg-white/[0.07]"
+                style={{ color: "rgba(255,255,255,0.45)" }}>
+                <Plus size={12} strokeWidth={2} />
+                <span>New Chat</span>
+              </button>
+
               {attachedFiles.length > 0 && (
                 <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded-md font-medium"
                   style={{ background: `${accentColor}20`, color: accentColor }}>
                   {attachedFiles.length} file{attachedFiles.length > 1 ? "s" : ""}
                 </span>
               )}
+            </div>
+
+            {/* Model tier selector — animated glass pills */}
+            <div className="flex items-center gap-1.5 px-3 py-2 border-t border-white/5 overflow-x-auto">
+              <span className="text-[9px] text-text-ghost font-medium uppercase tracking-wider mr-1 shrink-0">Model:</span>
+              {([
+                { id: "auto", label: "Auto", color: "#06b6d4" },
+                { id: "fast", label: "Fast", color: "#10b981" },
+                { id: "reasoning", label: "Deep Think", color: "#f59e0b" },
+                { id: "creative", label: "Creative", color: "#8b5cf6" },
+                { id: "technical", label: "Code", color: "#3b82f6" },
+                { id: "image", label: "Image", color: "#ec4899" },
+              ] as const).map((opt) => {
+                const isActive = modelTier === opt.id;
+                return (
+                  <motion.button
+                    key={opt.id}
+                    onClick={() => setModelTier(opt.id)}
+                    whileHover={{ scale: 1.05, y: -1 }}
+                    whileTap={{ scale: 0.92 }}
+                    animate={isActive ? { 
+                      boxShadow: `0 0 16px -2px ${opt.color}60, inset 0 1px 0 rgba(255,255,255,0.1)`,
+                    } : { 
+                      boxShadow: "0 0 0 0 transparent",
+                    }}
+                    transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                    className="relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[10px] font-medium shrink-0 overflow-hidden"
+                    style={isActive ? {
+                      background: `${opt.color}18`,
+                      color: opt.color,
+                      border: `1px solid ${opt.color}50`,
+                    } : {
+                      color: "rgba(255,255,255,0.4)",
+                      border: "1px solid rgba(255,255,255,0.06)",
+                      background: "rgba(255,255,255,0.02)",
+                    }}
+                  >
+                    {/* Animated icon */}
+                    <motion.div
+                      animate={isActive ? { rotate: [0, 5, -5, 0], scale: [1, 1.15, 1] } : { rotate: 0, scale: 1 }}
+                      transition={isActive ? { duration: 1.5, repeat: Infinity, ease: "easeInOut" } : { duration: 0.2 }}
+                    >
+                      {opt.id === "auto" && (
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <motion.path d="M13 2L3 14h9l-1 8 10-12h-9l1-8" animate={isActive ? { pathLength: [0, 1] } : {}} transition={{ duration: 0.8 }} />
+                        </svg>
+                      )}
+                      {opt.id === "fast" && (
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <motion.path d="M5 12h14M12 5l7 7-7 7" animate={isActive ? { x: [0, 2, 0] } : {}} transition={{ duration: 0.6, repeat: Infinity }} />
+                        </svg>
+                      )}
+                      {opt.id === "reasoning" && (
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <motion.circle cx="12" cy="12" r="10" animate={isActive ? { strokeDashoffset: [0, 63] } : {}} style={{ strokeDasharray: 63 }} transition={{ duration: 2, repeat: Infinity, ease: "linear" }} />
+                          <path d="M12 6v6l4 2" />
+                        </svg>
+                      )}
+                      {opt.id === "creative" && (
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <motion.path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" animate={isActive ? { scale: [1, 1.1, 1], rotate: [0, 15, -15, 0] } : {}} transition={{ duration: 2, repeat: Infinity }} />
+                        </svg>
+                      )}
+                      {opt.id === "technical" && (
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="16 18 22 12 16 6" />
+                          <polyline points="8 6 2 12 8 18" />
+                          <motion.line x1="12" y1="2" x2="12" y2="22" animate={isActive ? { rotate: [0, 180] } : {}} transition={{ duration: 2, repeat: Infinity, ease: "linear" }} style={{ transformOrigin: "center" }} />
+                        </svg>
+                      )}
+                      {opt.id === "image" && (
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                          <motion.circle cx="8.5" cy="8.5" r="1.5" animate={isActive ? { scale: [1, 1.3, 1] } : {}} transition={{ duration: 1, repeat: Infinity }} />
+                          <motion.path d="M21 15l-5-5L5 21" animate={isActive ? { pathLength: [0, 1] } : {}} transition={{ duration: 1.5, repeat: Infinity }} />
+                        </svg>
+                      )}
+                    </motion.div>
+                    <span>{opt.label}</span>
+
+                    {/* Active indicator glow */}
+                    {isActive && (
+                      <motion.div
+                        className="absolute inset-0 rounded-xl pointer-events-none"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: [0.3, 0.6, 0.3] }}
+                        transition={{ duration: 2, repeat: Infinity }}
+                        style={{ background: `radial-gradient(ellipse at center, ${opt.color}15 0%, transparent 70%)` }}
+                      />
+                    )}
+                  </motion.button>
+                );
+              })}
             </div>
 
             {/* Textarea + send */}
@@ -811,6 +955,25 @@ function ChatOverlay({ onClose, seedPrompt = "" }: { onClose: () => void; seedPr
                 </>
               )}
 
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── History panel ── */}
+      <AnimatePresence>
+        {showHistory && (
+          <motion.div
+            key="history"
+            initial={{ width: 0, opacity: 0 }}
+            animate={{ width: 340, opacity: 1 }}
+            exit={{ width: 0, opacity: 0 }}
+            transition={{ type: "spring", damping: 28, stiffness: 260 }}
+            className="shrink-0 overflow-hidden"
+            style={{ borderLeft: glassBorder }}
+          >
+            <div className="w-[340px] h-full">
+              <HistoryPanel onClose={() => setShowHistory(false)} />
             </div>
           </motion.div>
         )}

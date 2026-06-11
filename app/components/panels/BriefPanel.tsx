@@ -94,6 +94,7 @@ export default function BriefPanel({ onVoicePrompt }: BriefPanelProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          noSave: true,
           messages: [{
             role: "user",
             content: `Give me one short motivational tip (max 15 words) for this ${timeOfDay}. ${taskContext ? `Context: ${taskContext}` : ""}. Reply with ONLY the tip, no greeting or extra text.`

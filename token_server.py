@@ -5,6 +5,8 @@ import ssl
 import json
 import asyncio
 import logging
+import time
+from datetime import datetime, timezone
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 
@@ -55,6 +57,67 @@ def _get_ltm():
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
+# ── Conversation Storage ─────────────────────────────────────────────────────
+CONVERSATIONS_DIR = Path(__file__).parent / "data" / "conversations"
+CONVERSATIONS_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _load_conversation(conv_id: str) -> dict | None:
+    """Load a conversation JSON file by its ID."""
+    filepath = CONVERSATIONS_DIR / f"{conv_id}.json"
+    if not filepath.exists():
+        return None
+    try:
+        return json.loads(filepath.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError) as e:
+        logger.error(f"[conversations] Failed to load {conv_id}: {e}")
+        return None
+
+
+def _save_conversation(conv: dict) -> None:
+    """Save a conversation dict to its JSON file."""
+    filepath = CONVERSATIONS_DIR / f"{conv['id']}.json"
+    filepath.write_text(json.dumps(conv, indent=2, ensure_ascii=False), encoding="utf-8")
+
+
+def _list_conversations() -> list[dict]:
+    """List all conversations, newest first, with summary info."""
+    conversations = []
+    for f in CONVERSATIONS_DIR.glob("*.json"):
+        try:
+            data = json.loads(f.read_text(encoding="utf-8"))
+            conversations.append({
+                "id": data["id"],
+                "title": data.get("title", "Untitled"),
+                "source": data.get("source", "chat"),
+                "createdAt": data.get("createdAt", ""),
+                "updatedAt": data.get("updatedAt", ""),
+                "messageCount": len(data.get("messages", [])),
+            })
+        except (json.JSONDecodeError, OSError, KeyError) as e:
+            logger.warning(f"[conversations] Skipping invalid file {f.name}: {e}")
+    conversations.sort(key=lambda c: c.get("updatedAt", ""), reverse=True)
+    return conversations
+
+
+def _delete_conversation(conv_id: str) -> bool:
+    """Delete a conversation JSON file."""
+    filepath = CONVERSATIONS_DIR / f"{conv_id}.json"
+    if filepath.exists():
+        filepath.unlink()
+        return True
+    return False
+
+
+def _generate_title(messages: list[dict]) -> str:
+    """Generate a title from the first user message."""
+    for msg in messages:
+        if msg.get("role") == "user":
+            content = msg.get("content", "").strip()
+            if content:
+                return content[:60] + ("…" if len(content) > 60 else "")
+    return "New conversation"
+
 LIVEKIT_API_KEY = os.getenv("LIVEKIT_API_KEY", "")
 LIVEKIT_API_SECRET = os.getenv("LIVEKIT_API_SECRET", "")
 LIVEKIT_URL = os.getenv("LIVEKIT_URL", "")
@@ -67,17 +130,75 @@ SYSTEM_PROMPT = (
 )
 
 
-def _get_chat_response_sync(messages: list[dict]) -> str:
-    """Run the LLM call synchronously using the ModelRouter."""
-    from echomate.model_router import ModelRouter
+def _get_chat_response_sync(messages: list[dict], force_tier: str | None = None) -> str:
+    """Run the LLM call synchronously."""
+    import litellm
 
-    router = ModelRouter(timeout_seconds=30, max_fallbacks=3)
+    # Handle image generation separately
+    if force_tier == "image":
+        return _generate_image_sync(messages)
+
+    # Map tier to model
+    tier_model_map = {
+        "fast": "nvidia_nim/nvidia/nemotron-mini-4b-instruct",
+        "reasoning": "nvidia_nim/nvidia/nemotron-3-ultra-550b-a55b",
+        "creative": "nvidia_nim/meta/llama-3.1-70b-instruct",
+        "technical": "nvidia_nim/qwen/qwen2.5-coder-32b-instruct",
+        "voice": "nvidia_nim/nvidia/nemotron-mini-4b-instruct",
+    }
+
+    # Auto-detect tier if not forced
+    if not force_tier or force_tier not in tier_model_map:
+        from echomate.model_router import classify_complexity
+        complexity = classify_complexity(messages)
+        tier_map = {"simple": "fast", "moderate": "fast", "complex": "reasoning", "creative": "creative", "technical": "technical"}
+        force_tier = tier_map.get(complexity.value, "fast")
+
+    model = tier_model_map.get(force_tier, tier_model_map["fast"])
+    timeout = 45 if force_tier == "reasoning" else 20
+
+    # Fallback models
+    fallbacks = [
+        "openrouter/google/gemini-2.0-flash-001",
+        "openrouter/nex-agi/nex-n2-pro:free",
+    ]
 
     async def _run():
-        full_response = ""
-        async for token in router.route(messages):
-            full_response += token
-        return full_response
+        # Try primary model
+        try:
+            response = await asyncio.wait_for(
+                litellm.acompletion(model=model, messages=messages, stream=True),
+                timeout=timeout,
+            )
+            full = ""
+            async for chunk in response:
+                delta = chunk.choices[0].delta if chunk.choices else None
+                if delta and delta.content:
+                    full += delta.content
+            if full:
+                return full
+        except Exception as e:
+            logger.warning(f"[chat] Primary model {model} failed: {e}")
+
+        # Try fallbacks
+        for fb_model in fallbacks:
+            try:
+                response = await asyncio.wait_for(
+                    litellm.acompletion(model=fb_model, messages=messages, stream=True),
+                    timeout=20,
+                )
+                full = ""
+                async for chunk in response:
+                    delta = chunk.choices[0].delta if chunk.choices else None
+                    if delta and delta.content:
+                        full += delta.content
+                if full:
+                    logger.info(f"[chat] Fallback {fb_model} succeeded")
+                    return full
+            except Exception as e:
+                logger.warning(f"[chat] Fallback {fb_model} failed: {e}")
+
+        return ""
 
     loop = asyncio.new_event_loop()
     try:
@@ -86,12 +207,85 @@ def _get_chat_response_sync(messages: list[dict]) -> str:
         loop.close()
 
 
+def _generate_image_sync(messages: list[dict]) -> str:
+    """Generate an image using NVIDIA NIM's image generation API."""
+    import base64
+    import urllib.request
+    import urllib.error
+
+    # Extract the prompt from the last user message
+    prompt = ""
+    for msg in reversed(messages):
+        if msg.get("role") == "user":
+            prompt = msg.get("content", "")
+            break
+
+    if not prompt:
+        return "Please provide a description of the image you'd like me to generate."
+
+    nvidia_key = os.getenv("NVIDIA_NIM_API_KEY", "")
+    if not nvidia_key:
+        return "Image generation requires NVIDIA_NIM_API_KEY to be configured."
+
+    try:
+        # Use NVIDIA's Stable Diffusion XL via NIM
+        payload = json.dumps({
+            "text_prompts": [{"text": prompt, "weight": 1}],
+            "cfg_scale": 7,
+            "height": 1024,
+            "width": 1024,
+            "steps": 25,
+            "samples": 1,
+        })
+
+        req = urllib.request.Request(
+            "https://ai.api.nvidia.com/v1/genai/stabilityai/stable-diffusion-xl",
+            data=payload.encode(),
+            headers={
+                "Authorization": f"Bearer {nvidia_key}",
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+            },
+        )
+
+        ctx = None
+        if os.getenv("SSL_VERIFY", "true").lower() == "false":
+            ctx = ssl._create_unverified_context()
+
+        resp = urllib.request.urlopen(req, context=ctx, timeout=60)
+        result = json.loads(resp.read())
+
+        if result.get("artifacts") and len(result["artifacts"]) > 0:
+            img_b64 = result["artifacts"][0].get("base64", "")
+            if img_b64:
+                # Save image and return markdown
+                img_dir = Path(__file__).parent / "app" / "public" / "generated"
+                img_dir.mkdir(parents=True, exist_ok=True)
+                img_filename = f"img-{int(time.time())}.png"
+                img_path = img_dir / img_filename
+                img_path.write_bytes(base64.b64decode(img_b64))
+
+                return f"![Generated Image](/generated/{img_filename})\n\n*Generated: {prompt[:80]}*"
+
+        return "I generated the image but couldn't save it. Please try again."
+
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode() if e.fp else ""
+        logger.error(f"[image] NVIDIA API error {e.code}: {error_body[:200]}")
+        if e.code == 402:
+            return "Image generation quota exceeded. The free tier has limited credits."
+        return f"Image generation failed (HTTP {e.code}). Try a different prompt."
+    except Exception as e:
+        logger.error(f"[image] Generation error: {e}")
+        return f"Image generation failed: {str(e)}"
+
+
 class TokenHandler(BaseHTTPRequestHandler):
     def do_OPTIONS(self):
         """Handle CORS preflight requests."""
         self.send_response(200)
         self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
 
@@ -100,6 +294,11 @@ class TokenHandler(BaseHTTPRequestHandler):
             self.send_token()
         elif self.path == "/api/memories":
             self.handle_get_memories()
+        elif self.path == "/api/conversations":
+            self.handle_list_conversations()
+        elif self.path.startswith("/api/conversations/"):
+            conv_id = self.path.split("/api/conversations/")[1].strip("/")
+            self.handle_get_conversation(conv_id)
         else:
             self.send_response(404)
             self.end_headers()
@@ -115,6 +314,16 @@ class TokenHandler(BaseHTTPRequestHandler):
             self.handle_search_memories()
         elif self.path == "/api/memories/delete":
             self.handle_delete_memory()
+        elif self.path == "/api/conversations":
+            self.handle_create_conversation()
+        else:
+            self.send_response(404)
+            self.end_headers()
+
+    def do_DELETE(self):
+        if self.path.startswith("/api/conversations/"):
+            conv_id = self.path.split("/api/conversations/")[1].strip("/")
+            self.handle_delete_conversation(conv_id)
         else:
             self.send_response(404)
             self.end_headers()
@@ -128,6 +337,9 @@ class TokenHandler(BaseHTTPRequestHandler):
 
             user_messages = data.get("messages", [])
             skill_context = data.get("skillContext")
+            session_id = data.get("sessionId")
+            no_save = data.get("noSave", False)
+            force_tier = data.get("forceTier")  # "fast", "reasoning", "creative", "technical", "image"
             if not user_messages:
                 self._send_json(400, {"error": "No messages provided"})
                 return
@@ -142,12 +354,62 @@ class TokenHandler(BaseHTTPRequestHandler):
 
             logger.info(f"[chat] Processing {len(user_messages)} message(s)" + (" [with skill context]" if skill_context else ""))
 
-            response_text = _get_chat_response_sync(messages)
+            response_text = _get_chat_response_sync(messages, force_tier=force_tier)
 
             if not response_text:
                 response_text = "I'm sorry, I couldn't generate a response. Please try again."
 
-            self._send_json(200, {"response": response_text})
+            # Auto-save conversation (skip for internal/system calls)
+            if not no_save:
+                try:
+                    now = datetime.now(timezone.utc).isoformat()
+                    if not session_id:
+                        session_id = f"conv-{int(time.time() * 1000)}"
+
+                    existing = _load_conversation(session_id)
+                    if existing:
+                        # Append latest user message and assistant response
+                        last_user_msg = user_messages[-1] if user_messages else None
+                        if last_user_msg:
+                            existing["messages"].append({
+                                "role": "user",
+                                "content": last_user_msg.get("content", ""),
+                                "timestamp": now,
+                            })
+                        existing["messages"].append({
+                            "role": "assistant",
+                            "content": response_text,
+                            "timestamp": now,
+                        })
+                        existing["updatedAt"] = now
+                        _save_conversation(existing)
+                    else:
+                        # Create new conversation
+                        conv_messages = []
+                        for msg in user_messages:
+                            conv_messages.append({
+                                "role": msg.get("role", "user"),
+                                "content": msg.get("content", ""),
+                                "timestamp": now,
+                            })
+                        conv_messages.append({
+                            "role": "assistant",
+                            "content": response_text,
+                            "timestamp": now,
+                        })
+                        conv = {
+                            "id": session_id,
+                            "title": _generate_title(user_messages),
+                            "source": "chat",
+                            "createdAt": now,
+                            "updatedAt": now,
+                            "messages": conv_messages,
+                        }
+                        _save_conversation(conv)
+                except Exception as save_err:
+                    logger.warning(f"[chat] Failed to auto-save conversation: {save_err}")
+
+            self._send_json(200, {"response": response_text, "sessionId": session_id})
 
         except json.JSONDecodeError:
             self._send_json(400, {"error": "Invalid JSON body"})
@@ -300,6 +562,93 @@ class TokenHandler(BaseHTTPRequestHandler):
         except Exception as e:
             logger.error(f"[connector] Error: {e}")
             self._send_json(500, {"valid": False, "error": f"Validation error: {str(e)}"})
+
+    def handle_list_conversations(self):
+        """Return all conversations (summary only), newest first."""
+        try:
+            conversations = _list_conversations()
+            self._send_json(200, {"conversations": conversations})
+        except Exception as e:
+            logger.error(f"[conversations] List error: {e}")
+            self._send_json(500, {"error": str(e)})
+
+    def handle_get_conversation(self, conv_id: str):
+        """Return full conversation with messages."""
+        try:
+            conv = _load_conversation(conv_id)
+            if conv is None:
+                self._send_json(404, {"error": "Conversation not found"})
+                return
+            self._send_json(200, conv)
+        except Exception as e:
+            logger.error(f"[conversations] Get error: {e}")
+            self._send_json(500, {"error": str(e)})
+
+    def handle_create_conversation(self):
+        """Create or append to a conversation."""
+        try:
+            content_length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(content_length)
+            data = json.loads(body)
+
+            session_id = data.get("sessionId")
+            messages = data.get("messages", [])
+            source = data.get("source", "chat")
+            now = datetime.now(timezone.utc).isoformat()
+
+            if not session_id:
+                session_id = f"conv-{int(time.time() * 1000)}"
+
+            existing = _load_conversation(session_id)
+            if existing:
+                # Append messages
+                for msg in messages:
+                    existing["messages"].append({
+                        "role": msg.get("role", "user"),
+                        "content": msg.get("content", ""),
+                        "timestamp": msg.get("timestamp", now),
+                    })
+                existing["updatedAt"] = now
+                if not existing.get("title") or existing["title"] == "New conversation":
+                    existing["title"] = _generate_title(existing["messages"])
+                _save_conversation(existing)
+                self._send_json(200, {"id": session_id, "updated": True})
+            else:
+                # Create new conversation
+                conv_messages = []
+                for msg in messages:
+                    conv_messages.append({
+                        "role": msg.get("role", "user"),
+                        "content": msg.get("content", ""),
+                        "timestamp": msg.get("timestamp", now),
+                    })
+                conv = {
+                    "id": session_id,
+                    "title": _generate_title(messages),
+                    "source": source,
+                    "createdAt": now,
+                    "updatedAt": now,
+                    "messages": conv_messages,
+                }
+                _save_conversation(conv)
+                self._send_json(201, {"id": session_id, "created": True})
+
+        except json.JSONDecodeError:
+            self._send_json(400, {"error": "Invalid JSON body"})
+        except Exception as e:
+            logger.error(f"[conversations] Create error: {e}")
+            self._send_json(500, {"error": str(e)})
+
+    def handle_delete_conversation(self, conv_id: str):
+        """Delete a conversation by ID."""
+        try:
+            if _delete_conversation(conv_id):
+                self._send_json(200, {"deleted": True})
+            else:
+                self._send_json(404, {"error": "Conversation not found"})
+        except Exception as e:
+            logger.error(f"[conversations] Delete error: {e}")
+            self._send_json(500, {"error": str(e)})
 
     def handle_get_memories(self):
         """Return all memories from ChromaDB."""
@@ -491,5 +840,9 @@ if __name__ == "__main__":
     print(f"  POST /api/memories        — store a new memory")
     print(f"  POST /api/memories/search — semantic search memories")
     print(f"  POST /api/memories/delete — delete memories by query")
+    print(f"  GET  /api/conversations       — list all conversations")
+    print(f"  GET  /api/conversations/:id   — get conversation by ID")
+    print(f"  POST /api/conversations       — create/append conversation")
+    print(f"  DELETE /api/conversations/:id  — delete a conversation")
     print(f"LiveKit URL: {LIVEKIT_URL}")
     server.serve_forever()

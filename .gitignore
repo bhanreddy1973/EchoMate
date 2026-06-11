@@ -3,6 +3,7 @@
 
 # Runtime data
 data/chroma/
+data/conversations/
 
 # Node.js
 node_modules/

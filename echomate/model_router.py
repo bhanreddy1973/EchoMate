@@ -23,6 +23,53 @@ _GREETING_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r"^\s*(thanks|thank\s+you|thx|bye|goodbye|see\s+you|later|ok|okay|sure|yes|no|yep|nope|got\s+it|alright)\s*[.!?]?\s*$", re.IGNORECASE),
 ]
 
+# Keywords/phrases indicating CREATIVE queries
+_CREATIVE_KEYWORDS: list[str] = [
+    "write",
+    "story",
+    "poem",
+    "creative",
+    "imagine",
+    "journal",
+    "reflect",
+    "feeling",
+    "mood",
+    "emotion",
+    "motivate",
+    "inspire",
+    "meditat",
+    "mindful",
+    "gratitude",
+    "self-care",
+    "how am i",
+    "support",
+]
+
+# Keywords indicating TECHNICAL queries
+_TECHNICAL_KEYWORDS: list[str] = [
+    "code",
+    "function",
+    "debug",
+    "error",
+    "programming",
+    "algorithm",
+    "database",
+    "api",
+    "deploy",
+    "server",
+    "python",
+    "javascript",
+    "typescript",
+    "docker",
+    "kubernetes",
+    "git",
+    "terminal",
+    "command",
+    "script",
+    "build",
+    "compile",
+]
+
 # Keywords/phrases indicating a COMPLEX query (multi-step reasoning, synthesis)
 _COMPLEX_KEYWORDS: list[str] = [
     "compare",
@@ -55,12 +102,26 @@ _COMPLEX_PATTERNS: list[re.Pattern[str]] = [
     for kw in _COMPLEX_KEYWORDS
 ]
 
+_CREATIVE_PATTERNS: list[re.Pattern[str]] = [
+    re.compile(rf"\b{kw}\b", re.IGNORECASE) if " " not in kw
+    else re.compile(kw, re.IGNORECASE)
+    for kw in _CREATIVE_KEYWORDS
+]
+
+_TECHNICAL_PATTERNS: list[re.Pattern[str]] = [
+    re.compile(rf"\b{kw}\b", re.IGNORECASE) if " " not in kw
+    else re.compile(kw, re.IGNORECASE)
+    for kw in _TECHNICAL_KEYWORDS
+]
+
 
 def classify_complexity(messages: list[dict]) -> QueryComplexity:
     """Classify query complexity based on the user's last message.
 
-    Uses token count heuristics (whitespace splitting) and keyword detection:
+    Uses token count heuristics and keyword detection:
     - SIMPLE: < 20 tokens AND matches greeting/confirmation patterns
+    - TECHNICAL: contains code/programming keywords
+    - CREATIVE: contains emotional/writing keywords
     - COMPLEX: contains keywords suggesting multi-step reasoning or synthesis
     - MODERATE: everything else
 
@@ -70,22 +131,28 @@ def classify_complexity(messages: list[dict]) -> QueryComplexity:
     Returns:
         QueryComplexity classification for model routing.
     """
-    # Extract the last user message content
     content = _get_last_user_content(messages)
 
     if not content:
         return QueryComplexity.SIMPLE
 
-    # Approximate token count by splitting on whitespace
     token_count = len(content.split())
 
     # Check for SIMPLE: short message matching greeting/confirmation patterns
     if token_count < 20 and _matches_simple_pattern(content):
         return QueryComplexity.SIMPLE
 
+    # Check for TECHNICAL: code/programming keywords
+    if _matches_pattern_list(content, _TECHNICAL_PATTERNS):
+        return QueryComplexity.TECHNICAL
+
     # Check for COMPLEX: keywords suggesting multi-step reasoning
     if _matches_complex_pattern(content):
         return QueryComplexity.COMPLEX
+
+    # Check for CREATIVE: emotional/writing keywords
+    if _matches_pattern_list(content, _CREATIVE_PATTERNS):
+        return QueryComplexity.CREATIVE
 
     # Default to MODERATE
     return QueryComplexity.MODERATE
@@ -123,15 +190,16 @@ def _matches_simple_pattern(content: str) -> bool:
 
 
 def _matches_complex_pattern(content: str) -> bool:
-    """Check if content contains keywords indicating complex reasoning.
-
-    Args:
-        content: The user message text.
-
-    Returns:
-        True if the content contains multi-step/synthesis keywords.
-    """
+    """Check if content contains keywords indicating complex reasoning."""
     for pattern in _COMPLEX_PATTERNS:
+        if pattern.search(content):
+            return True
+    return False
+
+
+def _matches_pattern_list(content: str, patterns: list[re.Pattern[str]]) -> bool:
+    """Check if content matches any pattern in the list."""
+    for pattern in patterns:
         if pattern.search(content):
             return True
     return False
@@ -157,8 +225,17 @@ class AllModelsFailedError(Exception):
         )
 
 
-# Default model registry for EchoMate free model endpoints
+# Default model registry — multi-model routing across NVIDIA NIM + OpenRouter
 DEFAULT_MODEL_REGISTRY: list[ModelEndpoint] = [
+    # ── Voice tier (ultra-fast for real-time voice) ──
+    ModelEndpoint(
+        name="openrouter/gemini-flash",
+        provider="openrouter_free",
+        model_id="openrouter/google/gemini-2.0-flash-001",
+        tier="voice",
+        priority=1,
+    ),
+    # ── Fast tier (general chat, quick responses) ──
     ModelEndpoint(
         name="nvidia_nim/nemotron-mini-4b",
         provider="nvidia_nim",
@@ -167,24 +244,55 @@ DEFAULT_MODEL_REGISTRY: list[ModelEndpoint] = [
         priority=1,
     ),
     ModelEndpoint(
-        name="openrouter/nex-n2-pro",
+        name="openrouter/qwen3-coder-fast",
         provider="openrouter_free",
-        model_id="openrouter/nex-agi/nex-n2-pro:free",
+        model_id="openrouter/qwen/qwen3-coder:free",
+        tier="fast",
+        priority=2,
+    ),
+    # ── Reasoning tier (complex analysis, planning, multi-step) ──
+    ModelEndpoint(
+        name="nvidia_nim/nemotron-ultra-550b",
+        provider="nvidia_nim",
+        model_id="nvidia_nim/nvidia/nemotron-3-ultra-550b-a55b",
         tier="reasoning",
         priority=1,
     ),
     ModelEndpoint(
-        name="openrouter/nemotron-3-ultra",
+        name="openrouter/nex-n2-pro",
         provider="openrouter_free",
-        model_id="openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
+        model_id="openrouter/nex-agi/nex-n2-pro:free",
         tier="reasoning",
         priority=2,
+    ),
+    # ── Creative tier (emotional, journaling, reflection) ──
+    ModelEndpoint(
+        name="nvidia_nim/llama-3.1-70b",
+        provider="nvidia_nim",
+        model_id="nvidia_nim/meta/llama-3.1-70b-instruct",
+        tier="creative",
+        priority=1,
+    ),
+    ModelEndpoint(
+        name="openrouter/nemotron-ultra-creative",
+        provider="openrouter_free",
+        model_id="openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
+        tier="creative",
+        priority=2,
+    ),
+    # ── Technical tier (code, debugging, architecture) ──
+    ModelEndpoint(
+        name="nvidia_nim/qwen-coder-32b",
+        provider="nvidia_nim",
+        model_id="nvidia_nim/qwen/qwen2.5-coder-32b-instruct",
+        tier="technical",
+        priority=1,
     ),
     ModelEndpoint(
         name="openrouter/qwen3-coder",
         provider="openrouter_free",
         model_id="openrouter/qwen/qwen3-coder:free",
-        tier="fast",
+        tier="technical",
         priority=2,
     ),
 ]
@@ -236,20 +344,22 @@ class ModelRouter:
         self,
         messages: list[dict],
         tools: list[dict[str, Any]] | None = None,
+        force_tier: str | None = None,
     ) -> AsyncGenerator[str, None]:
         """Select model, call via LiteLLM, handle fallback on failure.
 
         Routing algorithm:
-        1. Classify query complexity using existing classify_complexity.
-        2. Filter models by matching tier (fast for SIMPLE/MODERATE, reasoning for COMPLEX).
+        1. Classify query complexity using classify_complexity (or use force_tier).
+        2. Filter models by matching tier.
         3. Sort by priority, prefer models with lowest recent error rate.
         4. Attempt top choice via LiteLLM with streaming.
-        5. On failure (error or timeout), try next model (max 3 fallbacks).
+        5. On failure (error or timeout), try next model (max fallbacks).
         6. Raise AllModelsFailedError when fallback chain is exhausted.
 
         Args:
             messages: OpenAI-format message list.
             tools: Optional tool definitions for function calling.
+            force_tier: Override automatic tier selection (e.g., "voice", "reasoning").
 
         Yields:
             Response tokens as they stream from the LLM.
@@ -257,9 +367,21 @@ class ModelRouter:
         Raises:
             AllModelsFailedError: When all fallback models are exhausted.
         """
-        complexity = classify_complexity(messages)
-        tier = self._tier_for_complexity(complexity)
+        if force_tier:
+            tier = force_tier
+        else:
+            complexity = classify_complexity(messages)
+            tier = self._tier_for_complexity(complexity)
+
         candidates = self._get_sorted_candidates(tier)
+
+        # Use longer timeout for reasoning models
+        timeout = self._timeout_seconds
+        if tier == "reasoning":
+            timeout = max(timeout, 30.0)
+        elif tier == "voice":
+            timeout = min(timeout, 8.0)
+        # For fast/creative/technical, use the configured timeout as-is
 
         if not candidates:
             raise AllModelsFailedError(messages, [("none", "No models available for tier")])
@@ -293,7 +415,7 @@ class ModelRouter:
                 # Call LiteLLM with timeout
                 response = await asyncio.wait_for(
                     litellm.acompletion(**kwargs),
-                    timeout=self._timeout_seconds,
+                    timeout=timeout,
                 )
 
                 # Stream tokens from the response
@@ -319,7 +441,7 @@ class ModelRouter:
 
             except asyncio.TimeoutError:
                 latency_ms = (time.monotonic() - start_time) * 1000
-                error_msg = f"Timeout after {self._timeout_seconds}s"
+                error_msg = f"Timeout after {timeout}s"
                 attempts.append((model_id, error_msg))
                 self.update_stats(model_id, latency_ms, success=False, tokens=0)
                 logger.warning(
@@ -401,15 +523,19 @@ class ModelRouter:
             complexity: The classified query complexity.
 
         Returns:
-            The tier string ("fast" or "reasoning").
+            The tier string.
         """
-        if complexity == QueryComplexity.COMPLEX:
-            return "reasoning"
-        # SIMPLE and MODERATE both use fast tier
-        return "fast"
+        mapping = {
+            QueryComplexity.COMPLEX: "reasoning",
+            QueryComplexity.CREATIVE: "creative",
+            QueryComplexity.TECHNICAL: "technical",
+        }
+        return mapping.get(complexity, "fast")
 
     def _get_sorted_candidates(self, tier: str) -> list[ModelEndpoint]:
         """Get candidate models for a tier, sorted by priority and health.
+
+        Falls back to 'fast' tier if no models found for the requested tier.
 
         Args:
             tier: The model tier to filter by.
@@ -418,6 +544,9 @@ class ModelRouter:
             Sorted list of ModelEndpoint candidates.
         """
         candidates = [m for m in self._models if m.tier == tier]
+        if not candidates:
+            # Fallback to fast tier
+            candidates = [m for m in self._models if m.tier == "fast"]
         return self._sort_by_priority_and_health(candidates)
 
     def _sort_by_priority_and_health(

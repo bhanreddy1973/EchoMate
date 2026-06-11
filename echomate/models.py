@@ -21,11 +21,15 @@ class QueryComplexity(str, Enum):
     - SIMPLE: fast-tier models (greetings, confirmations, < 20 tokens)
     - MODERATE: standard queries, single-topic
     - COMPLEX: reasoning-tier models (multi-step, analysis, synthesis)
+    - CREATIVE: creative writing, emotional support
+    - TECHNICAL: code, technical explanations
     """
 
     SIMPLE = "simple"
     MODERATE = "moderate"
     COMPLEX = "complex"
+    CREATIVE = "creative"
+    TECHNICAL = "technical"
 
 
 class ModelEndpoint(BaseModel):
@@ -45,7 +49,7 @@ class ModelEndpoint(BaseModel):
     name: str
     provider: Literal["nvidia_nim", "openrouter_free"]
     model_id: str
-    tier: Literal["fast", "reasoning"]
+    tier: Literal["fast", "reasoning", "creative", "technical", "voice"]
     priority: int
     avg_latency_ms: float = 0.0
     error_rate: float = 0.0

@@ -67,11 +67,13 @@ cp .env.example .env
 # 3. Start the agent
 make dev
 
-# 4. (Optional) Start the frontend
-cd frontend && npm run dev
+# 4. Start the frontend (Next.js spatial dashboard)
+cd app && npm install && npm run dev
 ```
 
-Visit `http://localhost:5173` in your browser and click to connect.
+Visit `http://localhost:3000` in your browser.
+
+> **Note:** The `frontend/` directory contains a legacy Vite prototype. The primary UI is `app/` (Next.js).
 
 ### Verify startup
 

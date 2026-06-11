@@ -298,16 +298,37 @@ async def entrypoint(ctx: JobContext) -> None:
 
     cfg = echomate.config
 
+    # Load current tasks and memories for context
+    task_context = ""
+    memory_context = ""
+    try:
+        import json
+        from pathlib import Path as _P
+        tasks_file = _P(__file__).parent / "data" / "conversations"
+        # Load tasks from localStorage export isn't possible, so we read from any saved state
+        # Use memories from ChromaDB
+        if echomate._memory_manager and echomate._memory_manager.long_term.is_available():
+            mem_ctx = await echomate._memory_manager.get_context("user preferences and tasks")
+            if mem_ctx.long_term_entries:
+                memory_context = "\n".join([f"- {e.text}" for e in mem_ctx.long_term_entries[:5]])
+    except Exception as e:
+        logger.warning(f"Failed to load context: {e}")
+
+    instructions = (
+        "You are EchoMate, a friendly and helpful voice companion. "
+        "You assist with daily tasks, reminders, habits, scheduling, and general questions. "
+        "Be concise, warm, and conversational. Keep responses under 2 sentences for voice. "
+        "You have access to the user's memory and preferences.\n"
+    )
+    if memory_context:
+        instructions += f"\nWhat you remember about the user:\n{memory_context}\n"
+
     agent = Agent(
-        instructions=(
-            "You are EchoMate, a friendly and helpful voice companion. "
-            "You assist with daily tasks, reminders, habits, and general questions. "
-            "Be concise, warm, and conversational."
-        ),
+        instructions=instructions,
         llm=openai_plugin.LLM(
-            model="nvidia/nemotron-mini-4b-instruct",
-            base_url="https://integrate.api.nvidia.com/v1",
-            api_key=cfg.llm.nvidia_nim_api_key,
+            model="google/gemini-2.0-flash-001",
+            base_url="https://openrouter.ai/api/v1",
+            api_key=cfg.llm.openrouter_api_key,
         ),
         stt=deepgram_plugin.STT(
             api_key=cfg.asr.api_key,
@@ -317,15 +338,15 @@ async def entrypoint(ctx: JobContext) -> None:
         tts=deepgram_plugin.TTS(
             api_key=cfg.asr.api_key,
         ),
-        vad=silero_plugin.VAD.load(min_silence_duration=0.6),
+        vad=silero_plugin.VAD.load(min_silence_duration=0.5),
         allow_interruptions=True,
     )
 
     session = AgentSession()
     await session.start(agent=agent, room=ctx.room)
-    logger.info("EchoMate session started")
+    logger.info("EchoMate session started with context-aware instructions")
 
-    await session.say("Hello! I'm EchoMate. How can I help you today?")
+    await session.say("Hey! I'm EchoMate. What can I help you with?")
 
 
 if __name__ == "__main__":
