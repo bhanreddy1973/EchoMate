@@ -1,0 +1,60 @@
+version: "3.8"
+
+# Self-hosted Judge0 CE for EchoMate Coding Workspace
+# Source: https://github.com/judge0/judge0
+#
+# Usage:
+#   cd judge0/
+#   podman-compose up -d
+#
+# Judge0 will be available at http://localhost:2358
+
+services:
+  server:
+    image: judge0/judge0:1.13.1
+    volumes:
+      - ./judge0.conf:/judge0.conf:ro
+    ports:
+      - "2358:2358"
+    privileged: true
+    restart: always
+    depends_on:
+      - db
+      - redis
+
+  workers:
+    image: judge0/judge0:1.13.1
+    command: ["./scripts/workers"]
+    volumes:
+      - ./judge0.conf:/judge0.conf:ro
+    privileged: true
+    restart: always
+    depends_on:
+      - db
+      - redis
+
+  db:
+    image: postgres:16.2
+    environment:
+      POSTGRES_DB: judge0
+      POSTGRES_USER: judge0
+      POSTGRES_PASSWORD: judge0password
+    volumes:
+      - judge0-postgres-data:/var/lib/postgresql/data
+    restart: always
+
+  redis:
+    image: redis:7.2
+    command: [
+      "redis-server",
+      "--appendonly", "yes",
+      "--maxmemory", "128mb",
+      "--maxmemory-policy", "allkeys-lru"
+    ]
+    volumes:
+      - judge0-redis-data:/data
+    restart: always
+
+volumes:
+  judge0-postgres-data:
+  judge0-redis-data:
