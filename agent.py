@@ -24,9 +24,25 @@ if os.getenv("SSL_VERIFY", "true").lower() == "false":
     os.environ["CURL_CA_BUNDLE"] = ""
     os.environ["REQUESTS_CA_BUNDLE"] = ""
     os.environ.pop("SSL_CERT_FILE", None)
+    os.environ["PYTHONHTTPSVERIFY"] = "0"
+    os.environ["NODE_TLS_REJECT_UNAUTHORIZED"] = "0"
 
     # Disable for litellm
     os.environ["LITELLM_SSL_VERIFY"] = "false"
+
+    # Create a completely permissive SSL context
+    ssl._create_default_https_context = ssl._create_unverified_context
+
+    # Also patch ssl.create_default_context to return unverified context
+    _original_create_default_context = ssl.create_default_context
+
+    def _permissive_ssl_context(*args, **kwargs):
+        ctx = _original_create_default_context(*args, **kwargs)
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        return ctx
+
+    ssl.create_default_context = _permissive_ssl_context
 
     # Create a permissive SSL context as the default
     ssl._create_default_https_context = ssl._create_unverified_context
@@ -330,6 +346,31 @@ def _load_coding_context() -> str:
 
 async def entrypoint(ctx: JobContext) -> None:
     """LiveKit job entrypoint — called once per incoming room connection."""
+    # Re-apply SSL patches in the child process (LiveKit forks a new process per job)
+    if os.getenv("SSL_VERIFY", "true").lower() == "false":
+        ssl._create_default_https_context = ssl._create_unverified_context
+        _orig_ctx = ssl.create_default_context
+        def _permissive_ctx(*a, **kw):
+            ctx_ssl = _orig_ctx(*a, **kw)
+            ctx_ssl.check_hostname = False
+            ctx_ssl.verify_mode = ssl.CERT_NONE
+            return ctx_ssl
+        ssl.create_default_context = _permissive_ctx
+
+        import aiohttp
+        _orig_tcp = aiohttp.TCPConnector.__init__
+        def _patched_tcp(self, *a, **kw):
+            kw.setdefault("ssl", False)
+            _orig_tcp(self, *a, **kw)
+        aiohttp.TCPConnector.__init__ = _patched_tcp
+
+        import httpx
+        _orig_httpx = httpx.AsyncClient.__init__
+        def _patched_httpx(self, *a, **kw):
+            kw.setdefault("verify", False)
+            _orig_httpx(self, *a, **kw)
+        httpx.AsyncClient.__init__ = _patched_httpx
+
     if not _LIVEKIT_AVAILABLE:
         logger.error("LiveKit packages are required to run the agent")
         return
@@ -380,7 +421,7 @@ async def entrypoint(ctx: JobContext) -> None:
     # Determine which LLM to use: NVIDIA Nemotron VoiceChat or standard LLM
     nvidia_key = cfg.llm.nvidia_nim_api_key or os.getenv("NVIDIA_NIM_API_KEY", "")
     voicechat_key = os.getenv("NVIDIA_VOICECHAT_API_KEY", "") or nvidia_key
-    voice_model = os.getenv("VOICE_LLM_MODEL", "nvidia/nemotron-voicechat")
+    voice_model = os.getenv("VOICE_LLM_MODEL", "meta/llama-3.1-70b-instruct")
 
     # Deepgram STT supports 36+ languages with nova-2
     # Language can be set via DEEPGRAM_LANGUAGE env var (default: en)

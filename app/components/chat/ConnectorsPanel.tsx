@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plug, Plus, X, Link, ToggleLeft, ToggleRight, Loader2, CheckCircle2, AlertCircle, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
-import { useEmotion } from "@/context/EmotionContext";
+import { Plug, Plus, X, Link, ToggleLeft, ToggleRight, Loader2, CheckCircle2, AlertCircle, ChevronUp, ExternalLink } from "lucide-react";
+import NextImage from "next/image";
 
 export type ProviderType = "github" | "notion" | "slack" | "google" | "gmail" | "calendar" | "custom";
 
