@@ -140,11 +140,11 @@ def _get_chat_response_sync(messages: list[dict], force_tier: str | None = None)
 
     # Map tier to model
     tier_model_map = {
-        "fast": "nvidia_nim/nvidia/nemotron-mini-4b-instruct",
-        "reasoning": "nvidia_nim/nvidia/nemotron-3-ultra-550b-a55b",
+        "fast": "nvidia_nim/meta/llama-3.1-8b-instruct",
+        "reasoning": "nvidia_nim/deepseek-ai/deepseek-v4-pro",
         "creative": "nvidia_nim/meta/llama-3.1-70b-instruct",
-        "technical": "nvidia_nim/qwen/qwen2.5-coder-32b-instruct",
-        "voice": "nvidia_nim/nvidia/nemotron-mini-4b-instruct",
+        "technical": "nvidia_nim/moonshotai/kimi-k2.6",
+        "voice": "nvidia_nim/nvidia/nemotron-voicechat",
     }
 
     # Auto-detect tier if not forced
@@ -308,6 +308,8 @@ class TokenHandler(BaseHTTPRequestHandler):
             self.handle_chat()
         elif self.path == "/api/connectors/test":
             self.handle_connector_test()
+        elif self.path == "/api/coding/context":
+            self.handle_coding_context()
         elif self.path == "/api/memories":
             self.handle_store_memory()
         elif self.path == "/api/memories/search":
@@ -416,6 +418,25 @@ class TokenHandler(BaseHTTPRequestHandler):
         except Exception as e:
             logger.error(f"[chat] Error: {e}")
             self._send_json(500, {"error": f"LLM error: {str(e)}"})
+
+    def handle_coding_context(self):
+        """Receive coding context from the frontend to sync with the voice agent."""
+        try:
+            content_length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(content_length)
+            data = json.loads(body)
+
+            # Save coding context for the voice agent to read
+            context_dir = Path(__file__).parent / "data"
+            context_dir.mkdir(parents=True, exist_ok=True)
+            context_file = context_dir / "coding_context.json"
+            context_file.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+
+            logger.info(f"[coding-context] Synced: problem={data.get('currentProblem', {}).get('title', 'none')}")
+            self._send_json(200, {"ok": True})
+        except Exception as e:
+            logger.error(f"[coding-context] Error: {e}")
+            self._send_json(500, {"error": str(e)})
 
     def handle_connector_test(self):
         """Validate a connector token against the real provider API."""
