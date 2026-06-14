@@ -280,6 +280,54 @@ class EchoMateAgent:
 # LiveKit Agents v1.x entrypoint
 # ---------------------------------------------------------------------------
 
+def _load_coding_context() -> str:
+    """Load current coding session context from saved run history."""
+    coding_context = ""
+    try:
+        import json as _json
+        from pathlib import Path as _P
+        
+        # Read coding session state if available
+        coding_state_file = _P(__file__).parent / "data" / "coding_context.json"
+        if coding_state_file.exists():
+            state = _json.loads(coding_state_file.read_text(encoding="utf-8"))
+            problem = state.get("currentProblem")
+            if problem:
+                coding_context += f"\n--- Current Coding Session ---\n"
+                coding_context += f"Problem: {problem.get('title', 'Unknown')} ({problem.get('difficulty', '')})\n"
+                if problem.get("tags"):
+                    coding_context += f"Tags: {', '.join(problem['tags'])}\n"
+                if problem.get("statementMarkdown"):
+                    coding_context += f"Statement: {problem['statementMarkdown'][:500]}\n"
+            
+            code = state.get("code", "")
+            lang = state.get("language", "")
+            if code:
+                coding_context += f"\nCurrent code ({lang}):\n```{lang}\n{code[:800]}\n```\n"
+            
+            results = state.get("runResults", [])
+            if results:
+                latest = results[0]
+                coding_context += f"\nLast run: {latest.get('status', 'unknown')}"
+                if latest.get("testResults"):
+                    passed = sum(1 for t in latest["testResults"] if t.get("passed"))
+                    total = len(latest["testResults"])
+                    coding_context += f" ({passed}/{total} tests passed)"
+                coding_context += "\n"
+            
+            history = state.get("history", [])
+            if history:
+                coding_context += f"\nCoding history ({len(history)} problems solved):\n"
+                for h in history[:5]:
+                    coding_context += f"  - {h.get('title', 'Unknown')}: {h.get('status', 'attempted')}\n"
+            
+            coding_context += "--- End Coding Context ---\n"
+    except Exception as e:
+        logger.debug(f"No coding context available: {e}")
+    
+    return coding_context
+
+
 async def entrypoint(ctx: JobContext) -> None:
     """LiveKit job entrypoint — called once per incoming room connection."""
     if not _LIVEKIT_AVAILABLE:
@@ -314,26 +362,42 @@ async def entrypoint(ctx: JobContext) -> None:
     except Exception as e:
         logger.warning(f"Failed to load context: {e}")
 
+    # Load coding context
+    coding_context = _load_coding_context()
+
     instructions = (
         "You are EchoMate, a friendly and helpful voice companion. "
-        "You assist with daily tasks, reminders, habits, scheduling, and general questions. "
-        "Be concise, warm, and conversational. Keep responses under 2 sentences for voice. "
-        "You have access to the user's memory and preferences.\n"
+        "You assist with daily tasks, reminders, habits, scheduling, coding help, and general questions. "
+        "Be concise, warm, and conversational. Keep responses under 2-3 sentences for voice. "
+        "You have access to the user's memory, preferences, and coding session.\n"
+        "When the user asks about their code or coding problems, use the coding context provided.\n"
     )
     if memory_context:
         instructions += f"\nWhat you remember about the user:\n{memory_context}\n"
+    if coding_context:
+        instructions += coding_context
+
+    # Determine which LLM to use: NVIDIA Nemotron VoiceChat or standard LLM
+    nvidia_key = cfg.llm.nvidia_nim_api_key or os.getenv("NVIDIA_NIM_API_KEY", "")
+    voicechat_key = os.getenv("NVIDIA_VOICECHAT_API_KEY", "") or nvidia_key
+    voice_model = os.getenv("VOICE_LLM_MODEL", "nvidia/nemotron-voicechat")
+
+    # Deepgram STT supports 36+ languages with nova-2
+    # Language can be set via DEEPGRAM_LANGUAGE env var (default: en)
+    # Supported: en, es, fr, de, it, pt, nl, ja, ko, zh, hi, ar, ru, pl, tr, sv, da, no, fi, etc.
+    stt_language = cfg.asr.language or "en"
 
     agent = Agent(
         instructions=instructions,
         llm=openai_plugin.LLM(
-            model="google/gemini-2.0-flash-001",
-            base_url="https://openrouter.ai/api/v1",
-            api_key=cfg.llm.openrouter_api_key,
+            model=voice_model,
+            base_url="https://integrate.api.nvidia.com/v1",
+            api_key=voicechat_key,
         ),
         stt=deepgram_plugin.STT(
             api_key=cfg.asr.api_key,
             model=cfg.asr.model,
-            language=cfg.asr.language,
+            language=stt_language,
         ),
         tts=deepgram_plugin.TTS(
             api_key=cfg.asr.api_key,
@@ -344,7 +408,7 @@ async def entrypoint(ctx: JobContext) -> None:
 
     session = AgentSession()
     await session.start(agent=agent, room=ctx.room)
-    logger.info("EchoMate session started with context-aware instructions")
+    logger.info(f"EchoMate session started — model={voice_model}, language={stt_language}")
 
     await session.say("Hey! I'm EchoMate. What can I help you with?")
 
