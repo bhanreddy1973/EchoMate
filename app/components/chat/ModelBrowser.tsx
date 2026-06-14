@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Bot, Brain, Check, ChevronDown, Code2, Cpu, Gauge, Globe2, Image, Mic, Search, Sparkles, Star, Zap } from "lucide-react";
+import { Bot, Brain, Check, ChevronDown, Code2, Gauge, Image, Mic, Search, Star, Zap } from "lucide-react";
 import { useEmotion } from "@/context/EmotionContext";
 
 export type ChatModelTier = "auto" | "fast" | "reasoning" | "creative" | "technical" | "voice" | "image";

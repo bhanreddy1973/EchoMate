@@ -1,14 +1,14 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Settings, Mic, MicOff, ChevronDown, LayoutGrid, MessageSquare, Loader2, Paperclip, Zap, Plug, X, FileText, Image as ImageIcon, ChevronRight, Plus, Link, ToggleRight, ToggleLeft, History, Code2 } from "lucide-react";
+import { Sparkles, Settings, Mic, MicOff, ChevronDown, LayoutGrid, MessageSquare, Loader2, Paperclip, Zap, Plug, X, FileText, Image as ImageIcon, ChevronRight, Plus, History, Code2 } from "lucide-react";
 import CodingWorkspace from "./coding/CodingWorkspace";
-import SkillsPanel, { ChatSkill, DEFAULT_SKILLS } from "./chat/SkillsPanel";
+import { ChatSkill, DEFAULT_SKILLS } from "./chat/SkillsPanel";
 import ConnectorsPanel, { ChatConnector, DEFAULT_CONNECTORS } from "./chat/ConnectorsPanel";
 import ModelBrowser from "./chat/ModelBrowser";
 import ReactMarkdown from "react-markdown";
-import { Room, RoomEvent, Track, ConnectionState } from "livekit-client";
+import { Room, RoomEvent, Track } from "livekit-client";
 import AmbientBackground from "./background/AmbientBackground";
 import LiquidGlassOrb from "./orb/LiquidGlassOrb";
 import TasksPanel from "./panels/TasksPanel";
@@ -35,11 +35,6 @@ export default function SpatialDashboard() {
       { id: `done-${Date.now()}`, text, completedAt: new Date(), category: "task" },
       ...prev,
     ]);
-  };
-
-  const handleVoicePrompt = (prompt: string) => {
-    setChatSeedPrompt(prompt);
-    setView("chat");
   };
 
   // Cleanup room on unmount
@@ -86,7 +81,7 @@ export default function SpatialDashboard() {
       });
 
       // Listen for agent audio tracks
-      room.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
+      room.on(RoomEvent.TrackSubscribed, (track, _publication, participant) => {
         if (track.kind === Track.Kind.Audio) {
           const audioEl = track.attach();
           audioEl.id = `lk-audio-${participant.identity}`;
@@ -96,7 +91,7 @@ export default function SpatialDashboard() {
         }
       });
 
-      room.on(RoomEvent.TrackUnsubscribed, (track, publication, participant) => {
+      room.on(RoomEvent.TrackUnsubscribed, (track) => {
         const elements = track.detach();
         elements.forEach((el) => el.remove());
         setEmotion("listening");
@@ -320,7 +315,7 @@ interface AttachedFile { name: string; size: number; type: string; }
 const PALETTE = ["#60a5fa","#a78bfa","#34d399","#f87171","#fbbf24","#e879f9","#fb923c","#38bdf8"];
 
 /* ─── Chat overlay ──────────────────────────────────────────────────────── */
-function ChatOverlay({ onClose, seedPrompt = "" }: { onClose: () => void; seedPrompt?: string }) {
+function ChatOverlay({ seedPrompt = "" }: { onClose: () => void; seedPrompt?: string }) {
   const [messages, setMessages] = useState<{ role: "user" | "assistant"; text: string }[]>([
     { role: "assistant", text: "Hey! I'm EchoMate. What's on your mind?" },
   ]);
@@ -352,11 +347,6 @@ function ChatOverlay({ onClose, seedPrompt = "" }: { onClose: () => void; seedPr
 
   /* Connectors state */
   const [connectors, setConnectors]         = useState<ChatConnector[]>(DEFAULT_CONNECTORS);
-  const [newConnName, setNewConnName]       = useState("");
-  const [newConnUrl, setNewConnUrl]         = useState("");
-  const [newConnColor, setNewConnColor]     = useState(PALETTE[2]);
-  const [addConnOpen, setAddConnOpen]       = useState(false);
-
   const bottomRef    = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const sentSeedRef  = useRef(false);
@@ -389,6 +379,8 @@ function ChatOverlay({ onClose, seedPrompt = "" }: { onClose: () => void; seedPr
       };
       doSend();
     }
+  // intentional: only run once per mount even if seedPrompt changes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const send = async () => {
@@ -460,17 +452,6 @@ function ChatOverlay({ onClose, seedPrompt = "" }: { onClose: () => void; seedPr
   };
 
   const removeSkill = (id: string) => setSkills((prev) => prev.filter((s) => s.id !== id));
-
-  const addConnector = () => {
-    const name = newConnName.trim();
-    const url  = newConnUrl.trim();
-    if (!name) return;
-    setConnectors((prev) => [...prev, { id: `cn-${Date.now()}`, name, color: newConnColor, url, providerType: "custom" as const, enabled: false }]);
-    setNewConnName(""); setNewConnUrl(""); setAddConnOpen(false);
-  };
-
-  const toggleConnector = (id: string) => setConnectors((prev) => prev.map((c) => c.id === id ? { ...c, enabled: !c.enabled } : c));
-  const removeConnector = (id: string) => setConnectors((prev) => prev.filter((c) => c.id !== id));
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
@@ -773,100 +754,11 @@ function ChatOverlay({ onClose, seedPrompt = "" }: { onClose: () => void; seedPr
 
               {/* ── CONNECTORS PANEL ── */}
               {rightPanel === "connectors" && (
-                <>
-                  {/* Panel header */}
-                  <div className="flex items-center justify-between mb-4 shrink-0">
-                    <div className="flex items-center gap-2">
-                      <Plug size={14} style={{ color: accentColor }} />
-                      <h3 className="text-[13px] font-semibold text-text-primary">Connectors</h3>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-md" style={{ background: `${accentColor}20`, color: accentColor }}>{activeConnCount} active</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <button onClick={() => setAddConnOpen((v) => !v)}
-                        className="w-6 h-6 flex items-center justify-center rounded-md transition-colors"
-                        style={{ background: `${accentColor}18`, border: `1px solid ${accentColor}30`, color: accentColor }}>
-                        <Plus size={11} />
-                      </button>
-                      <button onClick={() => setRightPanel(null)} className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-white/10 transition-colors">
-                        <X size={11} className="text-text-muted" />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Add connector form */}
-                  <AnimatePresence>
-                    {addConnOpen && (
-                      <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
-                        className="overflow-hidden shrink-0 mb-3">
-                        <div className="p-3 rounded-xl flex flex-col gap-2.5"
-                          style={{ background: "rgba(255,255,255,0.04)", border: glassBorder }}>
-                          <p className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">New Connector</p>
-                          <input value={newConnName} onChange={(e) => setNewConnName(e.target.value)}
-                            placeholder="Service name (e.g. Jira)"
-                            className="w-full bg-transparent text-[12px] text-text-primary placeholder:text-text-ghost outline-none px-2.5 py-1.5 rounded-lg"
-                            style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.07)" }} />
-                          <input value={newConnUrl} onChange={(e) => setNewConnUrl(e.target.value)}
-                            placeholder="URL / endpoint (optional)"
-                            className="w-full bg-transparent text-[12px] text-text-primary placeholder:text-text-ghost outline-none px-2.5 py-1.5 rounded-lg"
-                            style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.07)" }} />
-                          <div>
-                            <p className="text-[10px] text-text-muted mb-1.5">Colour</p>
-                            <div className="flex gap-1.5 flex-wrap">
-                              {PALETTE.map((c) => (
-                                <button key={c} onClick={() => setNewConnColor(c)}
-                                  className="w-5 h-5 rounded-full transition-all"
-                                  style={{ backgroundColor: c, outline: newConnColor === c ? `2px solid ${c}` : "none", outlineOffset: 2 }} />
-                              ))}
-                            </div>
-                          </div>
-                          <button onClick={addConnector} disabled={!newConnName.trim()}
-                            className="w-full py-1.5 rounded-lg text-[12px] font-medium text-white transition-opacity disabled:opacity-40"
-                            style={{ background: accentColor }}>
-                            Add Connector
-                          </button>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-
-                  {/* Connectors list */}
-                  <div className="flex-1 space-y-2 overflow-y-auto min-h-0">
-                    {connectors.map((conn) => (
-                      <motion.div key={conn.id} layout
-                        className="group flex items-center gap-2.5 p-2.5 rounded-xl hover:bg-white/[0.03] transition-colors">
-                        {/* Colour dot / favicon */}
-                        <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 overflow-hidden"
-                          style={{ background: `${conn.color}18`, border: `1px solid ${conn.color}28` }}>
-                          {conn.url ? (
-                            <img src={`https://www.google.com/s2/favicons?domain=${conn.url}&sz=16`} alt="" width={14} height={14}
-                              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-                          ) : (
-                            <Link size={12} style={{ color: conn.color }} strokeWidth={2} />
-                          )}
-                        </div>
-
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[12px] font-medium text-text-primary">{conn.name}</p>
-                          {conn.url && <p className="text-[10px] text-text-muted truncate">{conn.url}</p>}
-                        </div>
-
-                        {/* Toggle */}
-                        <button onClick={() => toggleConnector(conn.id)}
-                          className="shrink-0 transition-opacity"
-                          aria-label={conn.enabled ? "Disconnect" : "Connect"}>
-                          {conn.enabled
-                            ? <ToggleRight size={20} style={{ color: accentColor }} />
-                            : <ToggleLeft  size={20} style={{ color: "rgba(255,255,255,0.25)" }} />}
-                        </button>
-
-                        <button onClick={() => removeConnector(conn.id)}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                          <X size={10} className="text-text-ghost" />
-                        </button>
-                      </motion.div>
-                    ))}
-                  </div>
-                </>
+                <ConnectorsPanel
+                  connectors={connectors}
+                  onConnectorsChange={setConnectors}
+                  onClose={() => setRightPanel(null)}
+                />
               )}
 
             </div>
