@@ -2,8 +2,10 @@
 
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Settings, Mic, MicOff, ChevronDown, LayoutGrid, MessageSquare, Loader2, Paperclip, Zap, Plug, X, FileText, Image as ImageIcon, ChevronRight, Plus, History, Code2 } from "lucide-react";
+import { Sparkles, Settings, Mic, MicOff, ChevronDown, LayoutGrid, MessageSquare, Loader2, Paperclip, Zap, Plug, X, FileText, Image as ImageIcon, ChevronRight, Plus, History, Code2, Radio, Briefcase } from "lucide-react";
 import CodingWorkspace from "./coding/CodingWorkspace";
+import CareerWorkspace from "./career/CareerWorkspace";
+import NvidiaVoiceChat from "./voice/NvidiaVoiceChat";
 import { ChatSkill, DEFAULT_SKILLS } from "./chat/SkillsPanel";
 import ConnectorsPanel, { ChatConnector, DEFAULT_CONNECTORS } from "./chat/ConnectorsPanel";
 import ModelBrowser from "./chat/ModelBrowser";
@@ -24,7 +26,8 @@ import { CompletedItem } from "@/types";
 export default function SpatialDashboard() {
   const [micActive, setMicActive] = useState(false);
   const [connecting, setConnecting] = useState(false);
-  const [view, setView] = useState<"spatial" | "chat" | "coding">("spatial");
+  const [view, setView] = useState<"spatial" | "chat" | "coding" | "career">("spatial");
+  const [voiceMode, setVoiceMode] = useState<"livekit" | "nvidia">("nvidia");
   const [chatSeedPrompt, setChatSeedPrompt] = useState("");
   const [completedTasks, setCompletedTasks] = useState<CompletedItem[]>([]);
   const { accentColor, glowColor, setEmotion, setMetrics } = useEmotion();
@@ -180,8 +183,8 @@ export default function SpatialDashboard() {
             border: "1px solid rgba(255,255,255,0.08)",
           }}
         >
-          {(["spatial", "chat", "coding"] as const).map((v) => {
-            const Icon = v === "spatial" ? LayoutGrid : v === "chat" ? MessageSquare : Code2;
+          {(["spatial", "chat", "coding", "career"] as const).map((v) => {
+            const Icon = v === "spatial" ? LayoutGrid : v === "chat" ? MessageSquare : v === "coding" ? Code2 : Briefcase;
             const active = view === v;
             return (
               <button
@@ -280,10 +283,34 @@ export default function SpatialDashboard() {
                 <InsightsPanel />
               </div>
 
-              {/* Row 2: Center — orb + conversation bubbles */}
-              <div className="relative flex items-center justify-center min-h-0">
-                <ConversationBubbles />
-                <LiquidGlassOrb />
+              {/* Row 2: Center — orb + conversation bubbles / NVIDIA Voice */}
+              <div className="relative flex flex-col items-center justify-center min-h-0">
+                {/* Voice mode toggle */}
+                <div className="absolute top-2 flex items-center gap-1 p-0.5 rounded-lg z-20" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                  <button
+                    onClick={() => setVoiceMode("nvidia")}
+                    className="px-2 py-1 rounded-md text-[9px] font-medium transition-all"
+                    style={voiceMode === "nvidia" ? { background: "rgba(118,185,0,0.15)", color: "#76b900", border: "1px solid rgba(118,185,0,0.3)" } : { color: "rgba(255,255,255,0.35)" }}
+                  >
+                    <span className="flex items-center gap-1"><Radio size={8} />NVIDIA Voice</span>
+                  </button>
+                  <button
+                    onClick={() => setVoiceMode("livekit")}
+                    className="px-2 py-1 rounded-md text-[9px] font-medium transition-all"
+                    style={voiceMode === "livekit" ? { background: `${accentColor}15`, color: accentColor, border: `1px solid ${accentColor}30` } : { color: "rgba(255,255,255,0.35)" }}
+                  >
+                    <span className="flex items-center gap-1"><Mic size={8} />LiveKit</span>
+                  </button>
+                </div>
+
+                {voiceMode === "nvidia" ? (
+                  <NvidiaVoiceChat />
+                ) : (
+                  <>
+                    <ConversationBubbles />
+                    <LiquidGlassOrb />
+                  </>
+                )}
               </div>
 
               {/* Row 2: Right panels */}
@@ -298,13 +325,15 @@ export default function SpatialDashboard() {
           </motion.div>
         ) : view === "coding" ? (
           <CodingWorkspace key="coding" />
+        ) : view === "career" ? (
+          <CareerWorkspace key="career" />
         ) : (
           <ChatOverlay key="chat" seedPrompt={chatSeedPrompt} onClose={() => { setView("spatial"); setChatSeedPrompt(""); }} />
         )}
       </AnimatePresence>
 
       {/* ── Status Bar ────────────────────────────────────────────────────── */}
-      <StatusBar />
+      {view !== "coding" && view !== "career" && <StatusBar />}
     </div>
   );
 }
@@ -325,6 +354,7 @@ function ChatOverlay({ seedPrompt = "" }: { onClose: () => void; seedPrompt?: st
   const [rightPanel, setRightPanel]   = useState<"skills" | "connectors" | null>(null);
   const [showHistory, setShowHistory] = useState(false);
   const [modelTier, setModelTier] = useState<"auto" | "fast" | "reasoning" | "creative" | "technical" | "voice" | "image">("auto");
+  const [selectedChatModel, setSelectedChatModel] = useState<string>("meta/llama-3.1-70b-instruct");
   const sessionIdRef = useRef<string | null>(null);
 
   const startNewConversation = () => {
@@ -396,7 +426,7 @@ function ChatOverlay({ seedPrompt = "" }: { onClose: () => void; seedPrompt?: st
     setLoading(true);
     setEmotion("thinking");
     try {
-      const payload: { messages: { role: string; content: string }[]; skillContext?: string; sessionId?: string | null; forceTier?: string } = {
+      const payload: { messages: { role: string; content: string }[]; skillContext?: string; sessionId?: string | null; forceTier?: string; forceModel?: string } = {
         messages: next.map((m) => ({ role: m.role, content: m.text })),
         sessionId: sessionIdRef.current,
       };
@@ -405,6 +435,9 @@ function ChatOverlay({ seedPrompt = "" }: { onClose: () => void; seedPrompt?: st
       }
       if (modelTier !== "auto") {
         payload.forceTier = modelTier;
+      }
+      if (selectedChatModel) {
+        payload.forceModel = selectedChatModel;
       }
       const res  = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       const data = await res.json();
@@ -466,7 +499,7 @@ function ChatOverlay({ seedPrompt = "" }: { onClose: () => void; seedPrompt?: st
       exit={{ opacity: 0 }}
     >
       {/* ── Chat column ── */}
-      <div className="flex-1 flex flex-col items-center justify-end pb-6 px-4 min-w-0">
+      <div className="flex-1 flex flex-col items-center justify-end pb-16 px-4 min-w-0">
         {/* Messages */}
         <div className="w-full max-w-2xl flex-1 overflow-y-auto space-y-3 pb-4 min-h-0">
           {messages.map((m, i) => (
@@ -517,11 +550,11 @@ function ChatOverlay({ seedPrompt = "" }: { onClose: () => void; seedPrompt?: st
           </AnimatePresence>
 
           {/* Input box */}
-          <div className="rounded-2xl overflow-hidden"
+          <div className="rounded-2xl"
             style={{ background: "rgba(255,255,255,0.05)", backdropFilter: "blur(30px) saturate(180%)", border: "1px solid rgba(255,255,255,0.10)", boxShadow: `0 0 40px -10px ${glowColor}` }}>
 
             {/* Toolbar */}
-            <div className="flex items-center gap-1 px-3 pt-2.5 pb-1 border-b border-white/5 flex-wrap">
+            <div className="flex items-center gap-1 px-3 pt-2.5 pb-1 border-b border-white/5 flex-wrap rounded-t-2xl">
               <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFileChange} />
               <button onClick={() => fileInputRef.current?.click()}
                 className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] transition-colors hover:bg-white/[0.07]"
@@ -582,7 +615,7 @@ function ChatOverlay({ seedPrompt = "" }: { onClose: () => void; seedPrompt?: st
             </div>
 
             {/* Model browser — Claude/GPT style selector */}
-            <ModelBrowser selectedTier={modelTier} onChange={setModelTier} />
+            <ModelBrowser selectedTier={modelTier} onChange={setModelTier} onModelChange={setSelectedChatModel} />
 
             {/* Textarea + send */}
             <div className="flex items-end gap-3 px-3 py-3">

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plug, Plus, X, Link, ToggleLeft, ToggleRight, Loader2, CheckCircle2, AlertCircle, ChevronUp, ExternalLink } from "lucide-react";
-import NextImage from "next/image";
+import { useEmotion } from "@/context/EmotionContext";
 
 export type ProviderType = "github" | "notion" | "slack" | "google" | "gmail" | "calendar" | "custom";
 
