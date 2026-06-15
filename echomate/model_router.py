@@ -259,11 +259,18 @@ DEFAULT_MODEL_REGISTRY: list[ModelEndpoint] = [
         priority=1,
     ),
     ModelEndpoint(
+        name="nvidia_nim/mistral-small-4-119b",
+        provider="nvidia_nim",
+        model_id="nvidia_nim/mistralai/mistral-small-4-119b-2603",
+        tier="reasoning",
+        priority=2,
+    ),
+    ModelEndpoint(
         name="openrouter/nex-n2-pro",
         provider="openrouter_free",
         model_id="openrouter/nex-agi/nex-n2-pro:free",
         tier="reasoning",
-        priority=2,
+        priority=3,
     ),
     # ── Creative tier (emotional, journaling, reflection) ──
     ModelEndpoint(
@@ -289,11 +296,18 @@ DEFAULT_MODEL_REGISTRY: list[ModelEndpoint] = [
         priority=1,
     ),
     ModelEndpoint(
+        name="nvidia_nim/minimax-m3",
+        provider="nvidia_nim",
+        model_id="nvidia_nim/minimaxai/minimax-m3",
+        tier="technical",
+        priority=2,
+    ),
+    ModelEndpoint(
         name="openrouter/qwen3-coder",
         provider="openrouter_free",
         model_id="openrouter/qwen/qwen3-coder:free",
         tier="technical",
-        priority=2,
+        priority=3,
     ),
 ]
 

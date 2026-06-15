@@ -126,11 +126,12 @@ LIVEKIT_URL = os.getenv("LIVEKIT_URL", "")
 SYSTEM_PROMPT = (
     "You are EchoMate, a friendly and helpful voice-powered daily companion. "
     "You assist with daily tasks, reminders, habits, scheduling, and general questions. "
-    "Be concise, warm, and conversational. Use markdown formatting for lists and emphasis."
+    "Be concise, warm, and conversational. Use markdown formatting for lists and emphasis. "
+    "If the user asks about your model name or what model you are, honestly tell them your actual underlying model name and parameters."
 )
 
 
-def _get_chat_response_sync(messages: list[dict], force_tier: str | None = None) -> str:
+def _get_chat_response_sync(messages: list[dict], force_tier: str | None = None, force_model: str | None = None) -> str:
     """Run the LLM call synchronously."""
     import litellm
 
@@ -141,21 +142,27 @@ def _get_chat_response_sync(messages: list[dict], force_tier: str | None = None)
     # Map tier to model
     tier_model_map = {
         "fast": "nvidia_nim/meta/llama-3.1-8b-instruct",
-        "reasoning": "nvidia_nim/deepseek-ai/deepseek-v4-pro",
+        "reasoning": "nvidia_nim/mistralai/mistral-small-4-119b-2603",
         "creative": "nvidia_nim/meta/llama-3.1-70b-instruct",
         "technical": "nvidia_nim/moonshotai/kimi-k2.6",
         "voice": "nvidia_nim/nvidia/nemotron-voicechat",
+        "minimax": "nvidia_nim/minimaxai/minimax-m3",
     }
 
-    # Auto-detect tier if not forced
-    if not force_tier or force_tier not in tier_model_map:
-        from echomate.model_router import classify_complexity
-        complexity = classify_complexity(messages)
-        tier_map = {"simple": "fast", "moderate": "fast", "complex": "reasoning", "creative": "creative", "technical": "technical"}
-        force_tier = tier_map.get(complexity.value, "fast")
+    # If a specific model ID is forced, use it directly
+    if force_model:
+        model = f"nvidia_nim/{force_model}"
+        timeout = 45 if force_tier == "reasoning" else 25
+    else:
+        # Auto-detect tier if not forced
+        if not force_tier or force_tier not in tier_model_map:
+            from echomate.model_router import classify_complexity
+            complexity = classify_complexity(messages)
+            tier_map = {"simple": "fast", "moderate": "fast", "complex": "reasoning", "creative": "creative", "technical": "technical"}
+            force_tier = tier_map.get(complexity.value, "fast")
 
-    model = tier_model_map.get(force_tier, tier_model_map["fast"])
-    timeout = 45 if force_tier == "reasoning" else 20
+        model = tier_model_map.get(force_tier, tier_model_map["fast"])
+        timeout = 45 if force_tier == "reasoning" else 20
 
     # Fallback models
     fallbacks = [
@@ -198,7 +205,7 @@ def _get_chat_response_sync(messages: list[dict], force_tier: str | None = None)
             except Exception as e:
                 logger.warning(f"[chat] Fallback {fb_model} failed: {e}")
 
-        return ""
+        return "⚠️ All models timed out. The reasoning models may be under heavy load. Try switching to 'Fast' mode or try again in a moment."
 
     loop = asyncio.new_event_loop()
     try:
@@ -342,6 +349,7 @@ class TokenHandler(BaseHTTPRequestHandler):
             session_id = data.get("sessionId")
             no_save = data.get("noSave", False)
             force_tier = data.get("forceTier")  # "fast", "reasoning", "creative", "technical", "image"
+            force_model = data.get("forceModel")  # specific model ID like "z-ai/glm-5.1"
             if not user_messages:
                 self._send_json(400, {"error": "No messages provided"})
                 return
@@ -356,7 +364,7 @@ class TokenHandler(BaseHTTPRequestHandler):
 
             logger.info(f"[chat] Processing {len(user_messages)} message(s)" + (" [with skill context]" if skill_context else ""))
 
-            response_text = _get_chat_response_sync(messages, force_tier=force_tier)
+            response_text = _get_chat_response_sync(messages, force_tier=force_tier, force_model=force_model)
 
             if not response_text:
                 response_text = "I'm sorry, I couldn't generate a response. Please try again."
