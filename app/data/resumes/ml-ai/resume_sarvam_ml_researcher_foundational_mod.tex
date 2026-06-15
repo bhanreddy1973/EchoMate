@@ -1,0 +1,119 @@
+\documentclass[letterpaper,10pt]{article}
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage[usenames,dvipsnames]{color}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+\usepackage{tabularx}
+\usepackage{fontawesome5}
+\usepackage{multicol}
+\usepackage[T1]{fontenc}
+\usepackage[english]{babel}
+\input{glyphtounicode}
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+\addtolength{\oddsidemargin}{-0.6in}
+\addtolength{\evensidemargin}{-0.5in}
+\addtolength{\textwidth}{1.19in}
+\addtolength{\topmargin}{-.7in}
+\addtolength{\textheight}{1.4in}
+\urlstyle{same}
+\raggedright
+\raggedbottom
+\titleformat{\section}{ 
+\vspace{-4pt}\scshape\raggedright\large\bfseries 
+}{}{0em}{}[\color{black}\titlerule \vspace{-5pt}]
+\pdfgentounicode=1
+
+% Commands
+\newcommand{\resumeItem}[1]{\item\small{{#1 \vspace{-2pt}}}}
+\newcommand{\resumeSubheading}[4]{\vspace{-2pt}\item \begin{tabular*}{1.0\textwidth}[t]{l@{\extracolsep{\fill}}r} 
+\textbf{#1} & \textbf{\small #2} \\ 
+\textit{\small#3} & \textit{\small #4} \\ 
+\end{tabular*}\vspace{-7pt}}
+\newcommand{\resumeProjectHeading}[2]{\item \begin{tabular*}{1.0\textwidth}{l@{\extracolsep{\fill}}r} 
+\small#1 & \textbf{\small #2} \\ 
+\end{tabular*}\vspace{-7pt}}
+\newcommand{\resumeItemListStart}{\begin{itemize}[leftmargin=0.15in]}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{-5pt}}
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.0in, label={}}}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+
+\begin{document}
+
+%----------HEADING---------- 
+\begin{center}
+{\Huge \scshape BHANU REDDY CHOLAPALLI} \\ 
+\vspace{1pt} 
+\small \faMapMarker*~Bangalore, India ~ \faPhone\ +91-9505043644 ~ \href{mailto:rbhanu504@gmail.com}{\faEnvelope\ \underline{rbhanu504@gmail.com}} ~ \href{https://www.linkedin.com/in/bhanu-reddy1973/}{\faLinkedin\ \underline{LinkedIn}} ~ \href{https://github.com/bhanreddy1973}{\faGithub\ \underline{GitHub}} ~ \href{https://portfolio-gold-nine-72.vercel.app}{\faGlobe\ \underline{Portfolio}}
+\end{center}
+\vspace{-18pt}
+
+%-----------SUMMARY----------- 
+\section{Summary}
+\small{Applied Scientist with hands-on experience in \textbf{deep learning}, \textbf{NLP}, and \textbf{large-scale ML systems}. Published researcher in medical image classification using CNN architectures with attention mechanisms. Proficient in \textbf{PyTorch} and \textbf{distributed training}. Strong mathematical foundations in \textbf{optimization theory} and \textbf{neural architectures}.} 
+\vspace{-8pt}
+
+%-----------EDUCATION----------- 
+\section{Education}
+\resumeSubHeadingListStart
+\resumeSubheading {Indian Institute of Information Technology Kottayam}{Aug 2022 -- May 2026} {B.Tech in Computer Science and Engineering (AI \& Data Science)}{Kottayam, Kerala}
+\resumeSubHeadingListEnd
+\vspace{-14pt}
+
+%-----------EXPERIENCE----------- 
+\section{Experience}
+\resumeSubHeadingListStart
+
+% ---- SWIGGY ---- 
+\resumeSubheading{AI/Data Platform Engineer Intern}{Nov 2025 -- Present}{Swiggy — Data Platform Engineering}{Bangalore, India}
+\resumeItemListStart
+\resumeItem{Built a \textbf{hybrid retrieval system} combining BM25 keyword search + dense vector embeddings with Reciprocal Rank Fusion, achieving \textbf{82\% precision@5} and reducing table discovery time from hours to seconds.}
+\resumeItem{Engineered an \textbf{LLM-powered documentation pipeline} for 6,500+ tables, featuring multi-source context assembly, prompt-engineered summarization, and self-repair JSON parsing (\textgreater 99.5\% success rate).}
+\resumeItem{Deployed a \textbf{production AI tool-calling API} serving 6 endpoints with sub-200ms p95 latency, integrating with internal workflows and replacing manual knowledge sharing.}
+\resumeItemListEnd
+
+% ---- RESEARCH ---- 
+\resumeSubheading{Published Researcher}{}{}{}
+\resumeItemListStart
+\resumeItem{Proposed a \textbf{CNN architecture with residual connections and attention mechanisms} for skin lesion classification, achieving \textbf{90.5\% accuracy} on clinical dermoscopy datasets with class-imbalanced multi-label prediction.}
+\resumeItem{Applied \textbf{model compression} (structured pruning + INT8 quantization) to reduce CNN inference latency from 150ms to 47ms (3.2x speedup) with minimal accuracy loss.}
+\resumeItemListEnd
+
+\resumeSubHeadingListEnd
+\vspace{-14pt}
+
+%-----------PROJECTS----------- 
+\section{Projects}
+\resumeSubHeadingListStart
+
+% ---- TALKFLOW ---- 
+\resumeProjectHeading{TalkFlow: Real-Time Speech-to-Text Engine}{} 
+\resumeItemListStart
+\resumeItem{Built an open-source, real-time speech-to-text engine with faster-whisper (CTranslate2-optimized Whisper), VAD-based chunking, and INT8 quantized inference achieving real-time factor <0.3x on CPU.}
+\resumeItem{Handled end-to-end audio processing: capture, buffering, chunking, inference, and streaming output with latency optimization.}
+\resumeItemListEnd
+
+% ---- ECHOMATE ---- 
+\resumeProjectHeading{EchoMate: Voice-Powered Daily Life Companion}{} 
+\resumeItemListStart
+\resumeItem{Designed and implemented a streaming Voice_Pipeline with ASR, LLM, and TTS integration, achieving sub-200ms latency and supporting natural interruptions (Barge_In).}
+\resumeItem{Developed a Model Router with dynamic LLM selection based on query complexity, fallback mechanisms, and performance tracking using PyTorch.}
+\resumeItemListEnd
+
+\resumeSubHeadingListEnd
+\vspace{-14pt}
+
+%-----------SKILLS----------- 
+\section{Skills}
+\begin{itemize}[leftmargin=0.15in]
+\item \small{Machine Learning, Deep Learning, NLP, PyTorch, Distributed Training}
+\item \small{Optimization Theory, Neural Architectures, Statistical Learning}
+\item \small{Linux, Git, Cloud Platforms (AWS/GCP)}
+\end{itemize}
+\vspace{-5pt}
+
+\end{document}

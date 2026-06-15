@@ -1,0 +1,54 @@
+[
+  {
+    "id": "d097fb40-0c44-473d-bfc9-fa277c3990e1",
+    "createdAt": "2026-06-15T11:08:31.177Z",
+    "company": "Sarvam",
+    "role": "ML Researcher, Foundational Models",
+    "category": "ml-ai",
+    "filename": "resume_sarvam_ml_researcher_foundational_mod.tex",
+    "filePath": "/Users/bhanu.reddy_int/Documents/feedback doccumentation/Echomate/app/data/resumes/ml-ai/resume_sarvam_ml_researcher_foundational_mod.tex",
+    "atsScore": 32,
+    "keywords": [
+      "Machine Learning",
+      "AI",
+      "Transformer-based language models",
+      "PyTorch",
+      "Distributed training",
+      "NeurIPS",
+      "ICML",
+      "ICLR",
+      "ACL",
+      "EMNLP",
+      "COLM"
+    ],
+    "filesUsed": [
+      "resume_amazon_applied_scientist.tex",
+      "resume_ai.tex",
+      "resume_forward_deployed_ai.tex",
+      "cv_sarvam_mle_dubbing.md",
+      "coding-practice-platform-plan.md",
+      "requirements.md",
+      "tasks.md",
+      "spatial-coding-companion-plan.md"
+    ],
+    "latex": "\\documentclass[letterpaper,10pt]{article}\n\\usepackage[empty]{fullpage}\n\\usepackage{titlesec}\n\\usepackage[usenames,dvipsnames]{color}\n\\usepackage{enumitem}\n\\usepackage[hidelinks]{hyperref}\n\\usepackage{fancyhdr}\n\\usepackage{tabularx}\n\\usepackage{fontawesome5}\n\\usepackage{multicol}\n\\usepackage[T1]{fontenc}\n\\usepackage[english]{babel}\n\\input{glyphtounicode}\n\\pagestyle{fancy}\n\\fancyhf{}\n\\renewcommand{\\headrulewidth}{0pt}\n\\renewcommand{\\footrulewidth}{0pt}\n\\addtolength{\\oddsidemargin}{-0.6in}\n\\addtolength{\\evensidemargin}{-0.5in}\n\\addtolength{\\textwidth}{1.19in}\n\\addtolength{\\topmargin}{-.7in}\n\\addtolength{\\textheight}{1.4in}\n\\urlstyle{same}\n\\raggedright\n\\raggedbottom\n\\titleformat{\\section}{ \n\\vspace{-4pt}\\scshape\\raggedright\\large\\bfseries \n}{}{0em}{}[\\color{black}\\titlerule \\vspace{-5pt}]\n\\pdfgentounicode=1\n\n% Commands\n\\newcommand{\\resumeItem}[1]{\\item\\small{{#1 \\vspace{-2pt}}}}\n\\newcommand{\\resumeSubheading}[4]{\\vspace{-2pt}\\item \\begin{tabular*}{1.0\\textwidth}[t]{l@{\\extracolsep{\\fill}}r} \n\\textbf{#1} & \\textbf{\\small #2} \\\\ \n\\textit{\\small#3} & \\textit{\\small #4} \\\\ \n\\end{tabular*}\\vspace{-7pt}}\n\\newcommand{\\resumeProjectHeading}[2]{\\item \\begin{tabular*}{1.0\\textwidth}{l@{\\extracolsep{\\fill}}r} \n\\small#1 & \\textbf{\\small #2} \\\\ \n\\end{tabular*}\\vspace{-7pt}}\n\\newcommand{\\resumeItemListStart}{\\begin{itemize}[leftmargin=0.15in]}\n\\newcommand{\\resumeItemListEnd}{\\end{itemize}\\vspace{-5pt}}\n\\newcommand{\\resumeSubHeadingListStart}{\\begin{itemize}[leftmargin=0.0in, label={}}}\n\\newcommand{\\resumeSubHeadingListEnd}{\\end{itemize}}\n\n\\begin{document}\n\n%----------HEADING---------- \n\\begin{center}\n{\\Huge \\scshape BHANU REDDY CHOLAPALLI} \\\\ \n\\vspace{1pt} \n\\small \\faMapMarker*~Bangalore, India ~ \\faPhone\\ +91-9505043644 ~ \\href{mailto:rbhanu504@gmail.com}{\\faEnvelope\\ \\underline{rbhanu504@gmail.com}} ~ \\href{https://www.linkedin.com/in/bhanu-reddy1973/}{\\faLinkedin\\ \\underline{LinkedIn}} ~ \\href{https://github.com/bhanreddy1973}{\\faGithub\\ \\underline{GitHub}} ~ \\href{https://portfolio-gold-nine-72.vercel.app}{\\faGlobe\\ \\underline{Portfolio}}\n\\end{center}\n\\vspace{-18pt}\n\n%-----------SUMMARY----------- \n\\section{Summary}\n\\small{Applied Scientist with hands-on experience in \\textbf{deep learning}, \\textbf{NLP}, and \\textbf{large-scale ML systems}. Published researcher in medical image classification using CNN architectures with attention mechanisms. Proficient in \\textbf{PyTorch} and \\textbf{distributed training}. Strong mathematical foundations in \\textbf{optimization theory} and \\textbf{neural architectures}.} \n\\vspace{-8pt}\n\n%-----------EDUCATION----------- \n\\section{Education}\n\\resumeSubHeadingListStart\n\\resumeSubheading {Indian Institute of Information Technology Kottayam}{Aug 2022 -- May 2026} {B.Tech in Computer Science and Engineering (AI \\& Data Science)}{Kottayam, Kerala}\n\\resumeSubHeadingListEnd\n\\vspace{-14pt}\n\n%-----------EXPERIENCE----------- \n\\section{Experience}\n\\resumeSubHeadingListStart\n\n% ---- SWIGGY ---- \n\\resumeSubheading{AI/Data Platform Engineer Intern}{Nov 2025 -- Present}{Swiggy — Data Platform Engineering}{Bangalore, India}\n\\resumeItemListStart\n\\resumeItem{Built a \\textbf{hybrid retrieval system} combining BM25 keyword search + dense vector embeddings with Reciprocal Rank Fusion, achieving \\textbf{82\\% precision@5} and reducing table discovery time from hours to seconds.}\n\\resumeItem{Engineered an \\textbf{LLM-powered documentation pipeline} for 6,500+ tables, featuring multi-source context assembly, prompt-engineered summarization, and self-repair JSON parsing (\\textgreater 99.5\\% success rate).}\n\\resumeItem{Deployed a \\textbf{production AI tool-calling API} serving 6 endpoints with sub-200ms p95 latency, integrating with internal workflows and replacing manual knowledge sharing.}\n\\resumeItemListEnd\n\n% ---- RESEARCH ---- \n\\resumeSubheading{Published Researcher}{}{}{}\n\\resumeItemListStart\n\\resumeItem{Proposed a \\textbf{CNN architecture with residual connections and attention mechanisms} for skin lesion classification, achieving \\textbf{90.5\\% accuracy} on clinical dermoscopy datasets with class-imbalanced multi-label prediction.}\n\\resumeItem{Applied \\textbf{model compression} (structured pruning + INT8 quantization) to reduce CNN inference latency from 150ms to 47ms (3.2x speedup) with minimal accuracy loss.}\n\\resumeItemListEnd\n\n\\resumeSubHeadingListEnd\n\\vspace{-14pt}\n\n%-----------PROJECTS----------- \n\\section{Projects}\n\\resumeSubHeadingListStart\n\n% ---- TALKFLOW ---- \n\\resumeProjectHeading{TalkFlow: Real-Time Speech-to-Text Engine}{} \n\\resumeItemListStart\n\\resumeItem{Built an open-source, real-time speech-to-text engine with faster-whisper (CTranslate2-optimized Whisper), VAD-based chunking, and INT8 quantized inference achieving real-time factor <0.3x on CPU.}\n\\resumeItem{Handled end-to-end audio processing: capture, buffering, chunking, inference, and streaming output with latency optimization.}\n\\resumeItemListEnd\n\n% ---- ECHOMATE ---- \n\\resumeProjectHeading{EchoMate: Voice-Powered Daily Life Companion}{} \n\\resumeItemListStart\n\\resumeItem{Designed and implemented a streaming Voice_Pipeline with ASR, LLM, and TTS integration, achieving sub-200ms latency and supporting natural interruptions (Barge_In).}\n\\resumeItem{Developed a Model Router with dynamic LLM selection based on query complexity, fallback mechanisms, and performance tracking using PyTorch.}\n\\resumeItemListEnd\n\n\\resumeSubHeadingListEnd\n\\vspace{-14pt}\n\n%-----------SKILLS----------- \n\\section{Skills}\n\\begin{itemize}[leftmargin=0.15in]\n\\item \\small{Machine Learning, Deep Learning, NLP, PyTorch, Distributed Training}\n\\item \\small{Optimization Theory, Neural Architectures, Statistical Learning}\n\\item \\small{Linux, Git, Cloud Platforms (AWS/GCP)}\n\\end{itemize}\n\\vspace{-5pt}\n\n\\end{document}"
+  },
+  {
+    "id": "hist-test-001",
+    "createdAt": "2026-06-15T12:00:00Z",
+    "company": "Amazon",
+    "role": "SDE 1",
+    "category": "sde",
+    "filename": "resume_amazon_sde1.tex",
+    "atsScore": 78,
+    "keywords": [
+      "java",
+      "distributed"
+    ],
+    "filesUsed": [
+      "resume_sde.tex"
+    ],
+    "latex": "\\documentclass{article}\\begin{document}Amazon SDE test\\end{document}",
+    "filePath": "/Users/bhanu.reddy_int/Documents/feedback doccumentation/Echomate/app/data/resumes/sde/resume_amazon_sde1.tex"
+  }
+]
