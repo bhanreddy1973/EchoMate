@@ -1,20 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { promises as fs } from "fs";
 import path from "path";
-import { extractSkillsFromText, displayName } from "@/lib/skillsTaxonomy";
+import { extractSkillsFromText, normalizeSkill, displayName } from "@/lib/skillsTaxonomy";
 
 type ApiResponse = { choices?: { message?: { content?: string } }[] };
 
-/**
- * Auto-generate a tailored resume by:
- * 1. Scanning local .tex and .md files for relevant content
- * 2. Using AI to match the best content to the JD
- * 3. Generating a complete .tex file
- */
-
 // Directories to scan for resume/work files
-// - Project root (parent of app/): contains docs/, data/, echomate/ etc.
-// - app/data/resume/: explicitly included since the app/ dir is otherwise skipped
 const PROJECT_ROOT = path.resolve(process.cwd(), "..");
 const RESUME_DATA_DIR = path.join(process.cwd(), "data", "resume");
 
@@ -23,10 +14,11 @@ interface FileContent {
   path: string;
   content: string;
   type: "tex" | "md";
+  score: number;
 }
 
-async function scanFiles(): Promise<FileContent[]> {
-  const files: FileContent[] = [];
+async function scanFiles(): Promise<Omit<FileContent, "score">[]> {
+  const files: Omit<FileContent, "score">[] = [];
   const seen = new Set<string>();
 
   async function walkDir(dir: string, depth = 0): Promise<void> {
@@ -45,7 +37,6 @@ async function scanFiles(): Promise<FileContent[]> {
         }
 
         if (!entry.name.endsWith(".tex") && !entry.name.endsWith(".md")) continue;
-
         const lowerName = entry.name.toLowerCase();
         if (lowerName.includes("readme") && !lowerName.includes("resume")) continue;
 
@@ -65,85 +56,162 @@ async function scanFiles(): Promise<FileContent[]> {
     } catch { /* skip unreadable dirs */ }
   }
 
-  // Scan project root (skipping app/ directory)
   await walkDir(PROJECT_ROOT);
-  // Explicitly scan app/data/resume/ which is skipped by the root scan
   await walkDir(RESUME_DATA_DIR, 0);
   return files;
 }
 
-function scoreFileRelevance(file: FileContent, keywords: string[], role: string, company: string): number {
+function scoreFileRelevance(
+  file: Omit<FileContent, "score">,
+  keywords: string[],
+  role: string,
+  company: string
+): number {
   const lower = (file.content + " " + file.filename).toLowerCase();
   let score = 0;
 
-  // Filename relevance
   const fnLower = file.filename.toLowerCase();
   if (fnLower.includes("resume")) score += 20;
   if (fnLower.includes(role.split(" ")[0]?.toLowerCase() || "xxx")) score += 15;
   if (fnLower.includes(company.toLowerCase())) score += 25;
   if (fnLower.includes("work") || fnLower.includes("project")) score += 10;
   if (fnLower.includes("skill")) score += 8;
+  if (file.type === "tex" && fnLower.includes("resume")) score += 30;
+  if (fnLower.includes("documentation") || fnLower.includes("implementation")) score += 12;
 
-  // Content keyword matching
   for (const kw of keywords) {
     if (lower.includes(kw.toLowerCase())) score += 3;
   }
 
-  // Role-specific keywords
   const roleWords = role.toLowerCase().split(/\s+/);
   for (const word of roleWords) {
     if (word.length > 2 && lower.includes(word)) score += 5;
   }
 
-  // Tex files with resume in name are most relevant
-  if (file.type === "tex" && fnLower.includes("resume")) score += 30;
-
-  // Work documentation files are highly relevant
-  if (fnLower.includes("documentation") || fnLower.includes("implementation")) score += 12;
-
   return score;
 }
 
-// Models to use for multi-output generation (highest quality first)
+// Extract a quick candidate skill inventory from file contents using the taxonomy
+function extractCandidateSkillsFromFiles(files: FileContent[]): string[] {
+  const combined = files.map((f) => f.content).join("\n");
+  return extractSkillsFromText(combined);
+}
+
+// Build explicit requirement→evidence mapping
+function buildRequirementMapping(
+  requiredSkills: string[],
+  preferredSkills: string[],
+  responsibilities: string[],
+  candidateSkillIds: string[]
+): string {
+  const candidateNorm = new Set(candidateSkillIds);
+  const lines: string[] = [];
+
+  lines.push("=== JD REQUIREMENTS → CANDIDATE EVIDENCE ===");
+  lines.push("");
+
+  if (requiredSkills.length > 0) {
+    lines.push("REQUIRED SKILLS:");
+    for (const skill of requiredSkills) {
+      const norm = normalizeSkill(skill);
+      const found = candidateNorm.has(norm);
+      if (found) {
+        lines.push(`  ✓ ${skill}: PRESENT in candidate files — include prominently`);
+      } else {
+        lines.push(`  ✗ ${skill}: NOT FOUND — do NOT add this; mark as a gap`);
+      }
+    }
+    lines.push("");
+  }
+
+  if (preferredSkills.length > 0) {
+    lines.push("PREFERRED SKILLS:");
+    for (const skill of preferredSkills) {
+      const norm = normalizeSkill(skill);
+      const found = candidateNorm.has(norm);
+      lines.push(`  ${found ? "✓" : "—"} ${skill}: ${found ? "present" : "not confirmed"}`);
+    }
+    lines.push("");
+  }
+
+  if (responsibilities.length > 0) {
+    lines.push("JD RESPONSIBILITIES — mirror this language in tailored bullets:");
+    responsibilities.forEach((r, i) => lines.push(`  ${i + 1}. ${r}`));
+    lines.push("");
+  }
+
+  const confirmedCount = requiredSkills.filter((s) => candidateNorm.has(normalizeSkill(s))).length;
+  const matchPct = requiredSkills.length > 0
+    ? Math.round((confirmedCount / requiredSkills.length) * 100)
+    : 0;
+  lines.push(`Coverage: ${confirmedCount}/${requiredSkills.length} required skills confirmed (${matchPct}%)`);
+  lines.push("");
+
+  return lines.join("\n");
+}
+
 const GENERATION_MODELS = [
   { id: "nvidia/llama-3.3-nemotron-super-49b-v1", label: "Nemotron Super 49B", provider: "nvidia" },
   { id: "meta/llama-3.3-70b-instruct", label: "Llama 3.3 70B", provider: "nvidia" },
   { id: "mistralai/mistral-small-3.1-24b-instruct", label: "Mistral Small 24B", provider: "nvidia" },
 ];
-const OPENROUTER_FALLBACK = { id: "meta-llama/llama-3.1-70b-instruct:free", label: "Llama 3.1 70B (free)", provider: "openrouter" };
+const OPENROUTER_FALLBACK = {
+  id: "meta-llama/llama-3.1-70b-instruct:free",
+  label: "Llama 3.1 70B (free)",
+  provider: "openrouter",
+};
 
 function buildSystemPrompt(): string {
-  return `You are an expert ATS resume generator. Given a job description and the candidate's existing resume/work files, generate a COMPLETE, TAILORED .tex resume.
+  return `You are an expert ATS resume generator. You receive a job description with explicit skill mappings and the candidate's source files. Your job is to generate a COMPLETE, TAILORED LaTeX resume.
 
-ABSOLUTE RULES:
-1. Use ONLY information found in the provided files — NEVER fabricate experience, skills, projects, or achievements
-2. Select the most relevant 3-4 experiences and 2-3 projects for this specific role
-3. Include ATS-friendly keywords from the JD naturally in bullet points where they genuinely apply
-4. Use the EXACT same LaTeX template structure as the candidate's existing .tex files
-5. Keep the candidate's actual contact info, education, dates — NEVER change facts
-6. Reframe existing bullets to highlight relevance to the target role (rephrase, do not invent)
-7. If a .tex resume file exists for a similar role, use it as the primary template
+ABSOLUTE RULES — NEVER VIOLATE:
+1. Use ONLY information found in the provided candidate files — NEVER fabricate experience, skills, projects, or achievements
+2. Only include skills marked ✓ PRESENT in the requirement mapping — never add ✗ NOT FOUND skills
+3. Mirror JD language precisely in bullet points where the candidate genuinely has that experience
+4. Keep all dates, company names, job titles, degrees exactly as they appear in the source files
+5. "Reframing" = rephrasing real experience with stronger, JD-relevant language. Not inventing.
+6. Use standard LaTeX packages only: geometry, enumitem, hyperref, titlesec, fontenc, inputenc
+7. No graphics, images, multicol, or custom fonts — pure text for ATS parsing
+8. Output must compile with pdflatex without errors
 
-OUTPUT: Return ONLY the complete .tex file content. No explanations, no markdown fences, no commentary.
-The output must compile with pdflatex without errors.`;
+QUALITY REQUIREMENTS:
+- Order sections so most JD-relevant experience appears first
+- Lead every bullet with a strong action verb (Engineered, Architected, Built, Optimized, Led, Reduced, Deployed)
+- Include quantifiable metrics from the source files wherever available (%, $, ms, users, scale)
+- Skills section: list ONLY skills confirmed in both JD AND candidate files
+- If a similar role .tex file exists in the candidate's files, match that LaTeX template structure
+- Each bullet must address at least one JD responsibility or required skill
+
+OUTPUT: Return ONLY the complete .tex file content. No markdown, no fences, no explanations.`;
 }
 
-function buildUserMessage(jdData: Record<string, unknown>, jobDescription: string, fileContext: string): string {
-  return `## Target Job Description:
-Company: ${jdData.company || "Unknown"}
-Role: ${jdData.role || "Unknown"}
-Required Skills: ${((jdData.requiredSkills as string[]) || []).join(", ")}
-Preferred Skills: ${((jdData.preferredSkills as string[]) || []).join(", ")}
-Keywords: ${((jdData.keywords as string[]) || []).join(", ")}
-Responsibilities: ${((jdData.responsibilities as string[]) || []).join("; ")}
+function buildUserMessage(
+  jdData: Record<string, unknown>,
+  jobDescription: string,
+  requirementMapping: string,
+  fileContext: string
+): string {
+  return `## TARGET ROLE: ${jdData.role || "Unknown"} at ${jdData.company || "Unknown"}
 
-Full JD text:
-${((jdData.rawText as string) || jobDescription || "").slice(0, 3000)}
+## FULL JD TEXT:
+${((jdData.rawText as string) || jobDescription || "").slice(0, 2500)}
 
-## Candidate's Files (ranked by relevance to this JD):
+## SKILL REQUIREMENT ANALYSIS:
+${requirementMapping}
+
+## CANDIDATE SOURCE FILES (ranked by relevance — use these as the ONLY source of truth):
 ${fileContext}
 
-Generate the complete tailored .tex resume now. Use the template style from the highest-scored .tex file. Include ONLY real data from the files above.`;
+---
+GENERATION INSTRUCTIONS:
+1. Build the resume exclusively from content in the candidate files above
+2. For every ✓ PRESENT required skill: make sure it appears in relevant bullet points
+3. For every ✗ NOT FOUND required skill: do not add it — it is a real gap
+4. Mirror the exact language from JD Responsibilities in the bullets where evidence exists
+5. Use the LaTeX template structure from the highest-relevance .tex file
+6. Order experiences so the most JD-relevant appears first
+
+Generate the complete tailored .tex resume now:`;
 }
 
 async function callModel(
@@ -151,7 +219,7 @@ async function callModel(
   provider: string,
   messages: { role: string; content: string }[],
   nvidiaKey: string,
-  openRouterKey: string,
+  openRouterKey: string
 ): Promise<string> {
   const isNvidia = provider === "nvidia";
   const apiUrl = isNvidia
@@ -171,7 +239,7 @@ async function callModel(
       model: modelId,
       messages,
       max_tokens: 6000,
-      temperature: 0.3,
+      temperature: 0.2,
     }),
   });
 
@@ -196,9 +264,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Job description data is required" }, { status: 400 });
     }
 
-    const jdData = parsedJd || { rawText: jobDescription, role: "", company: "", keywords: [], requiredSkills: [], preferredSkills: [] };
+    const jdData: Record<string, unknown> = parsedJd || {
+      rawText: jobDescription,
+      role: "",
+      company: "",
+      keywords: [],
+      requiredSkills: [],
+      preferredSkills: [],
+      responsibilities: [],
+    };
 
-    // Augment keywords with taxonomy-extracted skills from JD text
+    // Build full keyword set from all JD sources
     const jdFullText = (jdData.rawText as string) || jobDescription || "";
     const taxonomyIds = extractSkillsFromText(jdFullText);
     const taxonomyLabels = taxonomyIds.map((id) => displayName(id));
@@ -219,22 +295,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No AI API key configured" }, { status: 500 });
     }
 
-    // Step 1: Combine uploaded files (highest priority) with scanned local files
+    // Step 1: Collect files (uploaded + local scan)
     const localFiles = await scanFiles();
-    const uploadedAsFileContent: FileContent[] = (uploadedFiles || []).map((f) => ({
+    const uploadedAsFileContent: Omit<FileContent, "score">[] = (uploadedFiles || []).map((f) => ({
       filename: f.filename,
       path: `[uploaded]/${f.filename}`,
       content: f.content,
       type: (f.type === "tex" || f.type === "md") ? f.type : "md",
     }));
 
-    // Give uploaded files a high base score so they're always in the top context
-    const scoredUploaded = uploadedAsFileContent.map((f) => ({
+    const scoredUploaded: FileContent[] = uploadedAsFileContent.map((f) => ({
       ...f,
       score: scoreFileRelevance(f, allKeywords, (jdData.role as string) || "", (jdData.company as string) || "") + 100,
     }));
 
-    const scoredLocal = localFiles.map((f) => ({
+    const scoredLocal: FileContent[] = localFiles.map((f) => ({
       ...f,
       score: scoreFileRelevance(f, allKeywords, (jdData.role as string) || "", (jdData.company as string) || ""),
     }));
@@ -243,22 +318,39 @@ export async function POST(req: NextRequest) {
     const topFiles = allScored.slice(0, 8);
 
     if (topFiles.length === 0) {
-      return NextResponse.json({ error: "No resume files found. Please upload your .tex or .md resume files." }, { status: 404 });
+      return NextResponse.json(
+        { error: "No resume files found. Please upload your .tex or .md resume files." },
+        { status: 404 }
+      );
     }
 
-    // Build file context — uploaded files get a [UPLOADED - PRIMARY SOURCE] marker
-    const fileContext = topFiles.map((f) => {
-      const label = f.path.startsWith("[uploaded]") ? `[UPLOADED - PRIMARY SOURCE] ${f.filename}` : `${f.filename} (relevance: ${f.score})`;
-      return `--- FILE: ${label} ---\n${f.content.slice(0, 4000)}\n`;
-    }).join("\n\n");
+    // Step 2: Extract candidate skills from the scanned files using the taxonomy
+    const candidateSkillIds = extractCandidateSkillsFromFiles(topFiles);
+
+    // Step 3: Build explicit requirement→evidence mapping
+    const requirementMapping = buildRequirementMapping(
+      (jdData.requiredSkills as string[]) || [],
+      (jdData.preferredSkills as string[]) || [],
+      (jdData.responsibilities as string[]) || [],
+      candidateSkillIds
+    );
+
+    // Step 4: Build file context string — uploaded files get priority label
+    const fileContext = topFiles
+      .map((f) => {
+        const label = f.path.startsWith("[uploaded]")
+          ? `[UPLOADED - PRIMARY SOURCE] ${f.filename}`
+          : `${f.filename} (relevance score: ${f.score})`;
+        return `--- FILE: ${label} ---\n${f.content.slice(0, 4000)}\n`;
+      })
+      .join("\n\n");
 
     const messages = [
       { role: "system", content: buildSystemPrompt() },
-      { role: "user", content: buildUserMessage(jdData, jobDescription || "", fileContext) },
+      { role: "user", content: buildUserMessage(jdData, jobDescription || "", requirementMapping, fileContext) },
     ];
 
-    // Step 2: Determine which models to run
-    // If preferredModel is set, put it first; always run 2-3 models for comparison
+    // Step 5: Run models
     let modelsToRun = [...GENERATION_MODELS];
     if (preferredModel) {
       const preferred = modelsToRun.find((m) => m.id === preferredModel);
@@ -267,12 +359,8 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Only use models we have keys for
-    const availableModels = nvidiaKey
-      ? modelsToRun.slice(0, 3) // all 3 NVIDIA models
-      : [OPENROUTER_FALLBACK]; // fallback
+    const availableModels = nvidiaKey ? modelsToRun.slice(0, 3) : [OPENROUTER_FALLBACK];
 
-    // Step 3: Generate with all models in parallel
     const results = await Promise.allSettled(
       availableModels.map((m) =>
         callModel(m.id, m.provider ?? "nvidia", messages, nvidiaKey, openRouterKey)
@@ -281,12 +369,21 @@ export async function POST(req: NextRequest) {
     );
 
     const modelOutputs = results
-      .filter((r): r is PromiseFulfilledResult<{ model: string; modelLabel: string; latex: string }> => r.status === "fulfilled")
+      .filter(
+        (r): r is PromiseFulfilledResult<{ model: string; modelLabel: string; latex: string }> =>
+          r.status === "fulfilled"
+      )
       .map(({ value }) => {
-        const keywordsFound = allKeywords.filter((kw) =>
+        // Score based on required skills (confirmed ones only) appearing in the output
+        const requiredSkills = (jdData.requiredSkills as string[]) || [];
+        const confirmedRequired = requiredSkills.filter((s) =>
+          candidateSkillIds.includes(normalizeSkill(s))
+        );
+        const scoreSet = [...new Set([...confirmedRequired, ...taxonomyLabels])];
+        const found = scoreSet.filter((kw) =>
           value.latex.toLowerCase().includes(kw.toLowerCase())
         ).length;
-        const atsScore = Math.min(95, Math.round((keywordsFound / Math.max(allKeywords.length, 1)) * 85 + 10));
+        const atsScore = Math.min(97, Math.round((found / Math.max(scoreSet.length, 1)) * 85 + 10));
         return { ...value, atsScore };
       });
 
@@ -294,13 +391,14 @@ export async function POST(req: NextRequest) {
       throw new Error("All models failed to generate. Check your API keys.");
     }
 
-    // Sort by ATS score descending — best output first
     modelOutputs.sort((a, b) => b.atsScore - a.atsScore);
 
     return NextResponse.json({
       latex: modelOutputs[0].latex,
       atsScore: modelOutputs[0].atsScore,
       modelOutputs,
+      candidateSkillsDetected: candidateSkillIds.map(displayName),
+      requirementMapping,
       filesUsed: topFiles.map((f) => ({
         filename: f.filename,
         score: f.score,

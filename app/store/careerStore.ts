@@ -502,6 +502,7 @@ export const useCareerStore = create<CareerStore>()(persist((set, get) => ({
         body: JSON.stringify({
           masterResume,
           parsedJd,
+          fitAnalysis,
           confirmedSuggestions: confirmed,
           rejectedSuggestions: rejected,
           atsKeywords: parsedJd.keywords,
