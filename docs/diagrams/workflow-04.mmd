@@ -1,0 +1,17 @@
+stateDiagram-v2
+    [*] --> spatial : default on mount
+
+    spatial --> chat : click Chat tab
+    spatial --> coding : click Coding tab
+    spatial --> career : click Career tab
+
+    chat --> spatial : close / click Spatial tab
+    coding --> spatial : click Spatial tab
+    career --> spatial : click Spatial tab
+
+    chat --> coding : click Coding tab
+    chat --> career : click Career tab
+    coding --> chat : click Chat tab
+    coding --> career : click Career tab
+    career --> chat : click Chat tab
+    career --> coding : click Coding tab

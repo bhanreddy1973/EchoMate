@@ -1,0 +1,9 @@
+flowchart TD
+    QUERY([Query string]) --> EMBED[Embed query vector]
+    EMBED --> SEARCH[Chroma similarity search\ntop_k=5]
+    SEARCH --> FILTER{similarity ≥ 0.7?}
+    FILTER -- Yes → include entries --> INJECT[Inject as context into prompt]
+    FILTER -- No matches → skip LTM --> STM_ONLY[Use short-term only]
+    INJECT & STM_ONLY --> FINAL([Final context to LLM])
+
+    CHROMA_DOWN{Chroma unavailable?} -- Yes --> STM_ONLY

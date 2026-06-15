@@ -1,0 +1,17 @@
+stateDiagram-v2
+    [*] --> idle
+
+    idle --> thinking : user sends message / starts processing
+    idle --> listening : mic activated / session connected
+    thinking --> speaking : LLM response ready, TTS starts
+    thinking --> concerned : API error
+    listening --> thinking : user finishes speaking
+    speaking --> listening : TTS playback ends
+    concerned --> idle : after 3s timeout
+    speaking --> listening : barge-in detected
+
+    note right of idle : accent #8b5cf6\nglow rgba(139,92,246,0.3)
+    note right of listening : accent #06b6d4\nglow rgba(6,182,212,0.3)
+    note right of thinking : accent #f59e0b\nglow rgba(245,158,11,0.3)
+    note right of speaking : accent #10b981\nglow rgba(16,185,129,0.3)
+    note right of concerned : accent #ef4444\nglow rgba(239,68,68,0.3)

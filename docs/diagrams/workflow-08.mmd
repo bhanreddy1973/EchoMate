@@ -1,0 +1,7 @@
+flowchart LR
+    E1[TrackSubscribed\nagent audio track] --> EM1[emotion: speaking]
+    E2[TrackUnsubscribed\nagent audio track] --> EM2[emotion: listening]
+    E3[ActiveSpeakersChanged\nagent speaking] --> EM3[emotion: speaking]
+    E4[ActiveSpeakersChanged\nuser speaking] --> EM4[emotion: listening]
+    E5[ActiveSpeakersChanged\nnobody] --> EM5[emotion: thinking]
+    E6[Disconnected] --> EM6[emotion: idle]

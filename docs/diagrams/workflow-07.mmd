@@ -1,0 +1,56 @@
+sequenceDiagram
+    participant USER as User Browser
+    participant FE as SpatialDashboard
+    participant TOKEN as /api/token
+    participant LK as LiveKit Server
+    participant VAD as Silero VAD
+    participant STT as Deepgram STT
+    participant AGENT as EchoMate Agent
+    participant MEM as Memory
+    participant MR as ModelRouter
+    participant LLM as NVIDIA/OpenRouter
+    participant TTS as Deepgram TTS
+
+    USER->>FE: Click "Start Session"
+    FE->>TOKEN: GET /api/token
+    TOKEN-->>FE: {token, url}
+    FE->>LK: room.connect(url, token)
+    FE->>LK: localParticipant.setMicrophoneEnabled(true)
+    Note over FE: emotion → "listening"
+
+    loop Voice conversation
+        USER->>LK: Audio stream (WebRTC)
+        LK->>VAD: Analyze 30ms frames
+        VAD-->>AGENT: Speech onset detected
+
+        alt Barge-in (user speaks while TTS playing)
+            AGENT->>AGENT: handleBarge-in()\nCancel TTS task\nCancel LLM task\nReset pipeline
+        end
+
+        VAD-->>AGENT: Speech end (silence > 600ms)
+        LK->>STT: Stream audio to Deepgram nova-2
+        STT-->>AGENT: Transcript text
+
+        AGENT->>MEM: stm.add({role: user, content: transcript})
+        AGENT->>MEM: get_context(transcript)
+        MEM-->>AGENT: {short_term_messages, long_term_entries}
+        AGENT->>AGENT: build_system_prompt(personality, memory_ctx, tools)
+        AGENT->>AGENT: build_messages(system_prompt, history, transcript)
+
+        AGENT->>MR: route(messages)
+        MR->>LLM: LiteLLM call (streaming tokens)
+        LLM-->>MR: token stream
+        MR-->>AGENT: async token iterator
+
+        AGENT->>TTS: Stream tokens → Deepgram TTS
+        TTS-->>LK: Audio chunks (22.05kHz WAV)
+        LK-->>USER: Agent audio track (WebRTC)
+        Note over FE: emotion → "speaking"
+
+        AGENT->>MEM: stm.add({role: assistant, content: response})
+    end
+
+    USER->>FE: Click "Stop Session"
+    FE->>LK: room.disconnect()
+    AGENT->>MEM: end_session(conversation) → summarize → LTM
+    AGENT->>AGENT: mcp_manager.shutdown()

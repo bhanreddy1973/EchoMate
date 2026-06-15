@@ -1,0 +1,23 @@
+sequenceDiagram
+    participant LK as LiveKit Server
+    participant AG as EchoMate Agent
+    participant MEM as MemoryManager
+    participant MR as ModelRouter
+    participant MCP as MCPManager
+    participant TOOL as ToolRegistry
+    participant PERS as PersonalityManager
+
+    LK->>AG: New room connection → entrypoint(ctx)
+    AG->>AG: ctx.connect()
+    AG->>MEM: init ShortTermMemory(max_tokens=4000)
+    MEM->>MEM: init LongTermMemory(chroma_persist_dir)
+    AG->>MR: init ModelRouter(timeout=5s, max_fallbacks=3)
+    AG->>MCP: init MCPManager + initialize(servers=[])
+    AG->>TOOL: init ToolRegistry(mcp_manager)
+    AG->>PERS: init PersonalityManager(profile)
+    AG->>AG: Load coding context from data/coding_context.json
+    AG->>MEM: get_context("user preferences") → memory_context
+    AG->>LK: Build Agent(llm, stt, tts, vad, instructions)
+    AG->>LK: session.start(agent, room)
+    AG->>LK: session.say("Hey! I'm EchoMate...")
+    Note over AG: Prints "EchoMate components initialised successfully"

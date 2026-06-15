@@ -1,0 +1,9 @@
+flowchart LR
+    A([npm run dev]) --> B[Next.js Dev Server\nPort 3000]
+    B --> C[app/layout.tsx\nWraps in EmotionProvider]
+    C --> D[app/page.tsx\nRenders SpatialDashboard]
+    D --> E[SpatialDashboard mounts\nDefault view: spatial]
+    E --> F{Initial state}
+    F --> G[AmbientBackground rendered\nz-index 0]
+    F --> H[Top nav bar rendered\nz-index 30]
+    F --> I[Spatial panel grid rendered\nz-index 10]

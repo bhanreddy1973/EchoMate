@@ -1,0 +1,27 @@
+flowchart TD
+    USER([User selects coaching action]) --> ACTION{action}
+    ACTION --> A1[explain_problem]
+    ACTION --> A2[walkthrough_examples]
+    ACTION --> A3[validate_approach]
+    ACTION --> A4[give_hint]
+    ACTION --> A5[debug_code]
+    ACTION --> A6[generate_edge_cases]
+    ACTION --> A7[analyze_complexity]
+    ACTION --> A8[optimize_approach]
+    ACTION --> A9[dry_run]
+    ACTION --> A10[visualize_flow]
+    ACTION --> A11[show_solution]
+    ACTION --> A12[free_text]
+
+    A1 & A2 & A3 & A4 & A5 & A6 & A7 & A8 & A9 & A10 & A11 & A12 --> SP[Build action-specific system prompt]
+    SP --> UM[Build user message:\nproblem + code + language + lastResult + userMessage]
+    UM --> ROUTE{Model provider}
+
+    ROUTE -- isNvidiaModel + nvidiaKey --> NIM[NVIDIA NIM\nintegrate.api.nvidia.com]
+    ROUTE -- isOpenRouterModel + openRouterKey --> OR[OpenRouter\nopenrouter.ai]
+    ROUTE -- fallback --> FBK[Try alternate key\nthen fallback model\nthen OpenRouter]
+
+    NIM & OR --> RESP[AI response]
+    RESP --> A10_CHECK{action = visualize_flow?}
+    A10_CHECK -- Yes --> MERMAID[Render Mermaid diagram\nMermaidDiagram.tsx]
+    A10_CHECK -- No --> MD[Render markdown\nreact-markdown]

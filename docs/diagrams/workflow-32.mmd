@@ -1,0 +1,10 @@
+flowchart LR
+    LOAD[loadResume] --> SAVE[saveResume]
+    IMPORT[importResumeFile] --> SAVE
+    SCRAPE[scrapeJdUrl] --> ANALYZE[analyzeJd]
+    ANALYZE --> UPDATE_SUGG[updateSuggestion]
+    UPDATE_SUGG --> GENERATE[generateResume]
+    ANALYZE --> AUTO_GEN[autoGenerateFromJd]
+    GENERATE & AUTO_GEN --> ADD_TRACKER[addToTracker]
+    SEARCH_CONTACTS[searchContacts] --> GEN_EMAIL[generateEmail]
+    SEARCH_JOBS[searchJobs]

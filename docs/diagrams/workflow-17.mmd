@@ -1,0 +1,46 @@
+sequenceDiagram
+    participant USER as User
+    participant JD as JDInputPanel
+    participant AN as Analyze API
+    participant GN as Generate API
+    participant NW as Network API
+    participant EM as Email API
+    participant TR as Tracker API
+    participant LLM as NVIDIA/OpenRouter
+
+    USER->>JD: Paste JD text or URL
+    alt URL input
+        JD->>JD: POST /api/career/scrape-jd {url}
+        JD-->>USER: Auto-fill JD text
+    end
+
+    USER->>JD: Click "Analyze Fit"
+    JD->>AN: POST /api/career/analyze\n{jobDescription, masterResume, model}
+    AN->>LLM: Parse JD → {role, company, requiredSkills, keywords, responsibilities}
+    AN->>LLM: Compare resume vs JD\n→ matchingSkills[], missingSkills[], suggestions[]
+    AN-->>JD: {parsedJd, fitAnalysis}
+    Note over JD: activePanel → "analysis"
+
+    USER->>AN: Review FitAnalysisPanel\nAccept / Edit / Reject suggestions
+
+    USER->>AN: Click "Generate Resume"
+    AN->>GN: POST /api/career/generate\n{masterResume, parsedJd, fitAnalysis,\nconfirmedSuggestions, rejectedSuggestions, atsKeywords, model}
+    GN->>GN: buildRequirementMapping()\nMap required skills → resume evidence
+    GN->>LLM: Generate ATS-optimized .tex resume\n(temperature=0.2, max_tokens=5000)
+    LLM-->>GN: LaTeX source
+    GN->>GN: Calculate ATS score\nValidate confirmed suggestions appear
+    GN-->>AN: {latex, atsScore, keywordsFound}
+    Note over AN: activePanel → "resume"
+
+    USER->>NW: Enter company + role → Search Contacts
+    NW->>NW: POST /api/career/network\n{company, role, connectors[]}
+    NW-->>USER: ContactResult[] {name, title, company, profile_url}
+
+    USER->>NW: Click "Generate Email" for a contact
+    NW->>EM: POST /api/career/email\n{contact, purpose, tone, userContext, targetRole}
+    EM->>LLM: Draft cold outreach email
+    EM-->>NW: {subject, body}
+
+    USER->>TR: Click "Add to Tracker"
+    TR->>TR: POST /api/career/tracker\n{type: application, entry}
+    Note over TR: Persisted to data/career_sessions/tracker.json

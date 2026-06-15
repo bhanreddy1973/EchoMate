@@ -1,0 +1,9 @@
+flowchart TD
+    A[No AI response] --> B{Which workspace?}
+    B -- Chat --> C{NVIDIA key valid?}
+    B -- Coding Coach --> C
+    B -- Career --> C
+    C -- No --> D[Check NVIDIA_NIM_API_KEY at build.nvidia.com]
+    C -- Yes --> E{OpenRouter fallback?}
+    E -- No key --> F[Add OPENROUTER_API_KEY]
+    E -- Has key --> G[Check browser network tab\nlook for 4xx/5xx from API route]

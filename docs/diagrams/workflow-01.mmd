@@ -1,0 +1,12 @@
+flowchart TD
+    A([python agent.py start]) --> B[Load .env]
+    B --> C{SSL_VERIFY=false?}
+    C -- Yes --> D[Patch ssl / httpx / aiohttp]
+    C -- No --> E[Normal SSL]
+    D --> E
+    E --> F[Import LiveKit Agents]
+    F --> G{Import success?}
+    G -- No --> H[Log warning\n_LIVEKIT_AVAILABLE = False]
+    G -- Yes --> I[Register entrypoint function]
+    I --> J[cli.run_app with WorkerOptions]
+    J --> K[LiveKit Worker starts\nListens for room connections]

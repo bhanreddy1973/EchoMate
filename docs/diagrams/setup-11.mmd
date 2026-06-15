@@ -1,0 +1,16 @@
+flowchart TD
+    START([Open Career Workspace]) --> JD_PANEL[Panel: JD Input]
+    JD_PANEL --> INPUT_JD{How to input JD}
+    INPUT_JD -- paste text --> JD_TEXT[Paste job description text]
+    INPUT_JD -- URL --> JD_URL[Paste job posting URL\nauto-scraped]
+    JD_TEXT & JD_URL --> ANALYZE2[Click Analyze Fit]
+    ANALYZE2 --> FIT_PANEL[Panel: Fit Analysis]
+    FIT_PANEL --> REVIEW[Review matching skills\nmissing skills + suggestions]
+    REVIEW --> ACCEPT_REJECT[Accept / Edit / Reject each suggestion]
+    ACCEPT_REJECT --> GEN[Click Generate Resume]
+    GEN --> RESUME_PANEL[Panel: Resume Editor\nLaTeX source + preview\nATS score gauge]
+    RESUME_PANEL --> DOWNLOAD[Download .tex file]
+    FIT_PANEL --> NETWORK[Panel: Network\nSearch contacts by company + role]
+    NETWORK --> EMAIL[Generate cold outreach email\nfor each contact]
+    RESUME_PANEL --> TRACKER2[Add to Application Tracker]
+    TRACKER2 --> TRACKER_PANEL[Panel: Tracker\nStatus + notes + history]

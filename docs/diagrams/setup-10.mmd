@@ -1,0 +1,6 @@
+flowchart TD
+    WRITE([Write solution in Monaco Editor]) --> RUNTYPE{Run type}
+    RUNTYPE -- Run with custom input --> CUSTOM[Enter stdin in input box\nClick Run]
+    RUNTYPE -- Run test cases --> TESTS[Click Run Tests\nauto-uses problem examples]
+    CUSTOM & TESTS --> JUDGE0[Sent to Judge0 CE\nvia /api/coding/run]
+    JUDGE0 --> RESULT[Status + stdout + stderr\nTime + memory + per-test pass/fail]

@@ -1,0 +1,37 @@
+sequenceDiagram
+    participant USER as User
+    participant FE as NvidiaVoiceChat
+    participant API as /api/voice/chat
+    participant NV as NVIDIA Nemotron VoiceChat
+    participant FB as Fallback Pipeline
+
+    USER->>FE: Press mic button
+    FE->>FE: navigator.mediaDevices.getUserMedia()
+    FE->>FE: MediaRecorder.start() — record webm
+
+    USER->>FE: Release mic button
+    FE->>FE: MediaRecorder.stop()
+    Note over FE: emotion → "thinking"
+
+    FE->>API: POST /api/voice/chat\nFormData {audio: webm blob, system_prompt}
+    API->>API: Convert audio to base64
+
+    API->>NV: POST integrate.api.nvidia.com/v1/audio/chat\n{model: nemotron-voicechat, audio_base64}
+
+    alt Primary path — VoiceChat API success
+        NV-->>API: {text, audio: base64 WAV, userTranscript}
+        API-->>FE: {text, audio, userTranscript, model}
+        FE->>FE: Decode base64 WAV → Blob → Audio element
+        FE->>USER: Play audio response
+        Note over FE: emotion → "speaking"
+    else Fallback path — VoiceChat API fails
+        NV-->>API: Error response
+        API->>FB: fallbackPipeline(audioBase64, systemPrompt)
+        FB->>NV: LLM call: meta/llama-3.1-70b-instruct
+        FB->>NV: TTS call: resembleai/chatterbox-multilingual-tts
+        FB-->>FE: {text, audio, model: "fallback-pipeline"}
+        FE->>USER: Play fallback audio
+    end
+
+    FE->>FE: Add messages to conversation history
+    Note over FE: emotion → "listening"

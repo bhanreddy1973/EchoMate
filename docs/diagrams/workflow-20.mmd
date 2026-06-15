@@ -1,0 +1,13 @@
+flowchart TD
+    TRANSCRIPT([User transcript from STT]) --> EMPTY{Empty?}
+    EMPTY -- Yes --> SKIP([Return empty string])
+    EMPTY -- No --> STM_ADD[stm.add role:user content:transcript]
+    STM_ADD --> GET_CTX[memory_manager.get_context transcript]
+    GET_CTX --> BUILD_SP[prompt_builder.build_system_prompt\npersonality + memory_ctx + tools + companion_state]
+    BUILD_SP --> BUILD_MSG[prompt_builder.build_messages\nsystem_prompt + short_term_history + user_input]
+    BUILD_MSG --> ROUTE[model_router.route messages]
+    ROUTE --> STREAM[Stream tokens → accumulate response_text]
+    STREAM --> ERR{Error?}
+    ERR -- Yes --> FALLBACK_MSG["I'm having trouble thinking right now."]
+    ERR -- No --> STM_ADD2[stm.add role:assistant content:response_text]
+    FALLBACK_MSG & STM_ADD2 --> RETURN([Return response text → TTS])

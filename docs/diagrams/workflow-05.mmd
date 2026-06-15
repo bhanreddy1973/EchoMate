@@ -1,0 +1,15 @@
+graph TD
+    SD[SpatialDashboard.tsx] --> V1[spatial view\n3-col grid layout]
+    SD --> V2[chat view\nChatOverlay inline]
+    SD --> V3[coding view\nCodingWorkspace.tsx]
+    SD --> V4[career view\nCareerWorkspace.tsx]
+
+    V1 --> P1[TasksPanel]
+    V1 --> P2[InsightsPanel]
+    V1 --> P3[Center — Orb + Voice]
+    V1 --> P4[RecapPanel]
+    V1 --> P5[ReadingListPanel]
+
+    P3 --> VM{voiceMode}
+    VM --> NV[NvidiaVoiceChat]
+    VM --> LK[LiquidGlassOrb + ConversationBubbles]

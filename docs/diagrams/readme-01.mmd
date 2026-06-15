@@ -1,0 +1,59 @@
+graph TB
+    subgraph Browser["Browser — Next.js 16"]
+        SD[Spatial Dashboard]
+        SD --> W1[Voice Mode]
+        SD --> W2[Chat Mode]
+        SD --> W3[Coding Workspace]
+        SD --> W4[Career Workspace]
+    end
+
+    subgraph VoicePipeline["Voice Pipeline"]
+        LK[LiveKit Server]
+        AG["EchoMate Agent — agent.py"]
+        DG[Deepgram STT]
+        NV["NVIDIA LLM"]
+        CA["Cartesia / Deepgram TTS"]
+        SL[Silero VAD]
+    end
+
+    subgraph BackendServices["Next.js API Routes"]
+        VC["api voice chat"]
+        CC["api coding coach"]
+        CR["api coding run"]
+        CF["api career"]
+        CH["api chat"]
+    end
+
+    subgraph ExternalAPIs["External APIs"]
+        NIM["NVIDIA NIM"]
+        OR["OpenRouter"]
+        J0["Judge0 CE Self-hosted"]
+    end
+
+    subgraph Memory["Memory System"]
+        STM["Short-Term Memory"]
+        LTM["Long-Term Memory — Chroma + RAG"]
+    end
+
+    W1 -- LiveKit WebRTC --> LK
+    LK --> AG
+    AG --> DG
+    AG --> SL
+    AG --> NV
+    AG --> CA
+    AG --> STM
+    AG --> LTM
+
+    W2 --> CH
+    W3 --> CC
+    W3 --> CR
+    W4 --> CF
+
+    CC --> NIM
+    CC --> OR
+    CR --> J0
+    CF --> NIM
+    CF --> OR
+    CH --> NIM
+    CH --> OR
+    VC --> NIM

@@ -1,0 +1,6 @@
+flowchart TD
+    A[Add entry to mcp_servers.json\nname + command + args + env] --> B[Add required API key to .env]
+    B --> C[Restart agent: make dev]
+    C --> D{Log shows connected?}
+    D -- Yes --> E[Tools auto-registered\nLLM can call them by name]
+    D -- No --> F[Check logs for connection error\nVerify command is installed\nuvx / npx / python]

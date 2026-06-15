@@ -1,0 +1,7 @@
+flowchart TD
+    A[Voice fails to connect] --> B{Token server running?}
+    B -- No --> C[Run: make dev-api]
+    B -- Yes --> D{LIVEKIT keys correct?}
+    D -- No --> E[Check LIVEKIT_URL, API_KEY, API_SECRET in .env]
+    D -- Yes --> F{LiveKit Cloud reachable?}
+    F -- No --> G[Check network / firewall / VPN]

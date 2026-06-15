@@ -1,0 +1,25 @@
+sequenceDiagram
+    participant USER as User
+    participant CO as ChatOverlay
+    participant MB as ModelBrowser
+    participant SK as SkillsPanel
+    participant CN as ConnectorsPanel
+    participant API as /api/chat
+
+    USER->>CO: Type message + press Enter
+    CO->>CO: Collect: input text, attached files, active skill context, selected model/tier, sessionId
+
+    alt Skill applied
+        USER->>SK: Click "Use" on a skill
+        SK->>CO: setInput(skill.prefix + current input)
+        Note over CO: skill.mdContent set as skillContext
+    end
+
+    CO->>API: POST /api/chat\n{messages, sessionId, skillContext, forceTier, forceModel}
+    API->>API: Route to NVIDIA NIM or OpenRouter\nbased on forceTier / forceModel
+    API-->>CO: {response, sessionId}
+
+    CO->>CO: Append assistant message
+    CO->>CO: emotion → "speaking" for 2s → "listening"
+
+    Note over CO: History tracked by sessionId\nRendered with ReactMarkdown

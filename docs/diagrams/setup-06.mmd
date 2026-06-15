@@ -1,0 +1,14 @@
+flowchart TD
+    A([Open http://localhost:3000]) --> B[Spatial view loads]
+    B --> C[Select LiveKit in center toggle]
+    C --> D[Click Start Session button top-right]
+    D --> E[Browser requests mic permission]
+    E --> F[App fetches LiveKit token from /api/token]
+    F --> G[WebRTC room connected]
+    G --> H[Mic goes live — orb glows cyan]
+    H --> I[Speak naturally]
+    I --> J[Agent responds with audio]
+    J --> K[Orb turns green while agent speaks]
+    K --> H
+    H --> L[Click Listening to stop]
+    L --> M[Session disconnects + memory saved]

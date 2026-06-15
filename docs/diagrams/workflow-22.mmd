@@ -1,0 +1,9 @@
+flowchart TD
+    DISCONNECT([Room disconnected]) --> CHECK_MEM{_memory_manager exists?}
+    CHECK_MEM -- Yes --> GET_CONV[get short_term messages]
+    GET_CONV --> END_SESSION[memory_manager.end_session conversation]
+    END_SESSION --> SUMMARIZE[Summarize session max 500 tokens]
+    SUMMARIZE --> STORE_LTM[Store summary in LongTermMemory Chroma]
+    STORE_LTM --> SHUTDOWN_MCP[mcp_manager.shutdown]
+    CHECK_MEM -- No --> SHUTDOWN_MCP
+    SHUTDOWN_MCP --> LOG([Log session ended])

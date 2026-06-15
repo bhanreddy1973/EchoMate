@@ -8,6 +8,7 @@ import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { motion, AnimatePresence } from "framer-motion";
 import { Copy, Check, ChevronDown, ChevronRight, Sparkles } from "lucide-react";
+import MermaidDiagram from "@/components/coding/MermaidDiagram";
 
 interface MarkdownRendererProps {
   content: string;
@@ -188,7 +189,7 @@ function MarkdownRendererInner({ content, className = "" }: MarkdownRendererProp
               code({ className: codeClassName, children, ...props }) {
                 const match = /language-(\w+)/.exec(codeClassName || "");
                 const isInline = !match && !codeClassName;
-                
+
                 if (isInline) {
                   return (
                     <code
@@ -200,11 +201,14 @@ function MarkdownRendererInner({ content, className = "" }: MarkdownRendererProp
                   );
                 }
 
-                return (
-                  <CodeBlock language={match?.[1] || ""}>
-                    {String(children).replace(/\n$/, "")}
-                  </CodeBlock>
-                );
+                const lang = match?.[1] || "";
+                const codeStr = String(children).replace(/\n$/, "");
+
+                if (lang === "mermaid") {
+                  return <MermaidDiagram chart={codeStr} />;
+                }
+
+                return <CodeBlock language={lang}>{codeStr}</CodeBlock>;
               },
               table({ children }) {
                 return (

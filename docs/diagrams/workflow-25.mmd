@@ -1,0 +1,19 @@
+flowchart TD
+    QUERY([Incoming messages]) --> CLASSIFY{Classify complexity}
+
+    CLASSIFY -- fewer than 20 tokens\nor greeting/confirmation --> FAST[Tier: fast]
+    CLASSIFY -- multi-step / analysis\n/ synthesis --> REASONING[Tier: reasoning]
+
+    FAST --> FILTER_FAST[Filter _MODEL_REGISTRY by tier=fast\nSort by priority, then health]
+    REASONING --> FILTER_REASON[Filter _MODEL_REGISTRY by tier=reasoning\nSort by priority, then health]
+
+    FILTER_FAST --> CHAIN[Build fallback chain max 3 models]
+    FILTER_REASON --> CHAIN
+
+    CHAIN --> TRY1[Attempt model 1\nvia LiteLLM async stream]
+    TRY1 -- success --> STREAM_TOKENS([Stream tokens back])
+    TRY1 -- error or timeout 5s --> TRY2[Attempt model 2]
+    TRY2 -- success --> STREAM_TOKENS
+    TRY2 -- error or timeout --> TRY3[Attempt model 3]
+    TRY3 -- success --> STREAM_TOKENS
+    TRY3 -- all failed --> ERROR_RESP([Return error — no free model available])

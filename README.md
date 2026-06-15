@@ -1,221 +1,213 @@
 # EchoMate
 
-A personalized, real-time voice-powered Daily Life Companion and Memory Assistant built on LiveKit Agents.
+**EchoMate** is a real-time, voice-powered AI companion and productivity platform. It combines a LiveKit-based Python voice agent with a Next.js spatial UI across four integrated workspaces: voice conversation, AI chat, coding assistant, and career intelligence.
 
 ---
 
-## Overview
+## Architecture Overview
 
-EchoMate is a modular, event-driven voice agent that:
+![Architecture Overview](docs/diagrams/readme-01.svg)
 
-- Hears you via **Deepgram** ASR and responds via **Cartesia** TTS
-- Routes queries to the best **free LLM** (NVIDIA NIM / OpenRouter) based on complexity
-- Remembers facts across sessions using **Chroma** vector DB + LlamaIndex RAG
-- Integrates external tools via the **Model Context Protocol (MCP)**
-- Tracks tasks, reminders, habits, and delivers morning briefings / evening reflections
-- Exposes a React + LiveKit frontend for browser-based interaction
+---
+
+## Key Features
+
+| Domain | Features |
+|--------|----------|
+| **Voice** | Real-time speech-to-speech via LiveKit + Deepgram STT + Cartesia TTS; barge-in interrupt; Silero VAD |
+| **NVIDIA Voice** | Direct end-to-end speech via `nvidia/nemotron-voicechat` — single API call for audio in / audio + text out |
+| **Chat** | Multi-model AI chat with skills, connectors, file attachments, model browser, history |
+| **Coding** | Monaco editor, Judge0 CE code execution (8 languages), AI coach with 12 skill modes, Mermaid diagram visualization, LeetCode problem import |
+| **Career** | JD parser, resume fit analysis, ATS-optimized LaTeX resume generation, job search, recruiter contact finder, cold email drafter, application tracker |
+| **Memory** | Short-term sliding-window context (4000 tokens) + long-term Chroma vector DB with LlamaIndex RAG |
+| **Model Router** | Tiered routing (fast / reasoning) with automatic fallback chain across NVIDIA NIM and OpenRouter free models |
+| **MCP** | Pluggable Model Context Protocol server support for calendar, weather, web search |
+
+---
+
+## Repository Structure
 
 ```
-Architecture:
-
-Browser (React + LiveKit SDK)
-        │
-        ▼
-LiveKit Server ─────► EchoMate Agent (Python)
-                              │
-              ┌───────────────┼───────────────┐
-              ▼               ▼               ▼
-          Deepgram ASR   Model Router    Cartesia TTS
-                              │
-                    ┌─────────┼─────────┐
-                    ▼         ▼         ▼
-               NVIDIA NIM  OpenRouter  Memory
-               (Nemotron)  (free tier) (Chroma/STM)
-                                        │
-                                    MCP Tools
-                                 (weather/calendar/web)
+EchoMate/
+├── agent.py                    # LiveKit agent entrypoint — voice pipeline orchestrator
+├── echomate/                   # Python backend modules
+│   ├── config/settings.py      # Pydantic config loaded from .env
+│   ├── memory/                 # Short-term + long-term memory (Chroma + LlamaIndex)
+│   ├── model_router.py         # Tiered LLM routing with fallback chain (LiteLLM)
+│   ├── mcp_manager.py          # MCP server lifecycle + tool registry
+│   ├── personality/            # Configurable personality profiles
+│   ├── prompts/builder.py      # System prompt assembly
+│   └── tools/registry.py       # Tool aggregation (MCP + built-in)
+├── app/                        # Next.js 16 frontend
+│   ├── app/
+│   │   ├── layout.tsx          # Root layout + EmotionContext
+│   │   ├── page.tsx            # Renders SpatialDashboard
+│   │   └── api/                # Next.js API routes
+│   │       ├── voice/chat/     # NVIDIA Nemotron VoiceChat + fallback pipeline
+│   │       ├── chat/           # Multi-model text chat
+│   │       ├── coding/
+│   │       │   ├── coach/      # AI coding coach (12 skill modes)
+│   │       │   ├── run/        # Judge0 CE code execution
+│   │       │   ├── models/     # Available model listing
+│   │       │   ├── tts/        # TTS for coach responses
+│   │       │   └── import-url/ # LeetCode problem scraper
+│   │       └── career/
+│   │           ├── analyze/    # JD + resume fit analysis
+│   │           ├── generate/   # LaTeX resume generation
+│   │           ├── auto-generate/ # Multi-model batch generation
+│   │           ├── email/      # Cold email drafting
+│   │           ├── network/    # Recruiter contact search
+│   │           ├── jobs/       # Job board search
+│   │           ├── tracker/    # Application tracker persistence
+│   │           ├── scrape-jd/  # JD URL scraper
+│   │           ├── import/     # Resume file import (.tex/.md)
+│   │           └── resume-data/ # Master resume CRUD
+│   ├── components/
+│   │   ├── SpatialDashboard.tsx  # Root layout + view switcher
+│   │   ├── voice/              # NvidiaVoiceChat, ConversationBubbles
+│   │   ├── coding/             # CodingWorkspace, AICoachPanel, CodeEditorPanel, RunnerPanel
+│   │   ├── career/             # CareerWorkspace, JDInputPanel, FitAnalysisPanel, ResumeEditorPanel
+│   │   ├── panels/             # TasksPanel, RecapPanel, InsightsPanel, ReadingListPanel
+│   │   ├── orb/                # LiquidGlassOrb (animated voice state indicator)
+│   │   ├── chat/               # ChatInput, ModelBrowser, SkillsPanel, ConnectorsPanel
+│   │   └── ui/                 # StatusBar, GlassCard, AnimatedBorder, SparkLine
+│   ├── store/
+│   │   ├── careerStore.ts      # Zustand store — career state + all async actions
+│   │   ├── chatStore.ts        # Zustand store — chat sessions + history
+│   │   └── codingStore.ts      # Zustand store — editor, problems, run results
+│   ├── context/
+│   │   └── EmotionContext.tsx  # Global emotion state → accent color + animations
+│   ├── data/
+│   │   ├── resume/master_resume.json   # Persistent master resume
+│   │   ├── career_sessions/            # Session history + application tracker
+│   │   └── skills_taxonomy.json        # Canonical skills taxonomy
+│   └── lib/
+│       ├── skillsTaxonomy.ts   # Skill normalization + taxonomy utilities
+│       └── codingStats.ts      # Coding session stats helpers
+├── .env.example                # All environment variables documented
+├── Makefile                    # setup / dev / test / lint targets
+└── mcp_servers.json            # MCP server configuration
 ```
 
 ---
 
-## Prerequisites
+## Tech Stack
 
-| Requirement | Version |
-|-------------|---------|
-| Python | 3.11+ |
-| Node.js | 18+ |
-| Git | any |
+### Backend (Python Agent)
 
-### System dependencies
+| Component | Technology |
+|-----------|-----------|
+| Agent framework | LiveKit Agents v1.x |
+| STT | Deepgram (nova-2, 36+ languages) |
+| TTS | Deepgram / Cartesia |
+| VAD | Silero |
+| LLM interface | LiteLLM |
+| LLM providers | NVIDIA NIM, OpenRouter (free tier) |
+| Memory — short term | In-process sliding window |
+| Memory — long term | Chroma vector DB + LlamaIndex RAG |
+| Config validation | Pydantic |
+| Tool protocol | Model Context Protocol (MCP) |
 
-- On macOS: `brew install portaudio` (for audio I/O)
-- On Ubuntu/Debian: `apt-get install portaudio19-dev`
+### Frontend (Next.js App)
+
+| Component | Technology |
+|-----------|-----------|
+| Framework | Next.js 16, React 19 |
+| Styling | Tailwind CSS v4 |
+| Animations | Framer Motion, GSAP |
+| Code editor | Monaco Editor |
+| State management | Zustand (with persistence) |
+| Real-time voice | LiveKit Client SDK |
+| Markdown rendering | react-markdown + rehype plugins |
+| Diagram rendering | Mermaid.js |
+| Math rendering | KaTeX |
+| Code execution | Judge0 CE (self-hosted) |
+| TypeScript | v5 |
 
 ---
 
 ## Quick Start
 
+See [SETUP.md](SETUP.md) for full installation instructions and [WORKFLOW.md](WORKFLOW.md) for a deep-dive into how each module works.
+
 ```bash
-# 1. Clone and set up
+# 1. Clone
 git clone <repo-url> echomate && cd echomate
-make setup
 
-# 2. Configure environment
+# 2. Configure
 cp .env.example .env
-# Edit .env with your API keys (see "API Keys" section below)
+# Fill in at minimum: LIVEKIT_*, DEEPGRAM_API_KEY, NVIDIA_NIM_API_KEY or OPENROUTER_API_KEY
 
-# 3. Start the agent
-make dev
+# 3. Python setup
+make setup          # creates .venv, installs deps, clones skill repos
 
-# 4. Start the frontend (Next.js spatial dashboard)
-cd app && npm install && npm run dev
+# 4. Frontend
+cd app && npm install
+
+# 5. Run everything
+make dev-all        # starts token server + Next.js + LiveKit agent in parallel
 ```
 
-Visit `http://localhost:3000` in your browser.
-
-> **Note:** The `frontend/` directory contains a legacy Vite prototype. The primary UI is `app/` (Next.js).
-
-### Verify startup
-
-The agent prints `EchoMate components initialised successfully` on successful startup. If any required API key is missing, a `ValidationError` is raised listing the missing fields before the agent starts.
+Visit `http://localhost:3000`.
 
 ---
 
-## API Keys
+## API Keys Required
 
-EchoMate uses free-tier providers wherever possible:
+| Variable | Provider | Free Tier |
+|----------|----------|-----------|
+| `LIVEKIT_URL` + `LIVEKIT_API_KEY` + `LIVEKIT_API_SECRET` | [LiveKit Cloud](https://cloud.livekit.io) | Yes |
+| `DEEPGRAM_API_KEY` | [Deepgram Console](https://console.deepgram.com) | Yes ($200 credit) |
+| `NVIDIA_NIM_API_KEY` | [build.nvidia.com](https://build.nvidia.com) | Yes |
+| `CARTESIA_API_KEY` | [play.cartesia.ai](https://play.cartesia.ai) | Yes (free credits) |
+| `OPENROUTER_API_KEY` | [openrouter.ai/keys](https://openrouter.ai/keys) | Yes (free models) |
+| `JUDGE0_BASE_URL` | Self-hosted Judge0 CE | Free (self-hosted) |
 
-| Variable | Provider | Where to get it |
-|----------|----------|-----------------|
-| `LIVEKIT_URL` | LiveKit | [LiveKit Cloud](https://cloud.livekit.io) |
-| `LIVEKIT_API_KEY` | LiveKit | LiveKit Cloud dashboard |
-| `LIVEKIT_API_SECRET` | LiveKit | LiveKit Cloud dashboard |
-| `DEEPGRAM_API_KEY` | Deepgram | [Deepgram Console](https://console.deepgram.com) — free tier available |
-| `CARTESIA_API_KEY` | Cartesia | [Cartesia](https://play.cartesia.ai) — free credits |
-| `NVIDIA_NIM_API_KEY` | NVIDIA NIM | [build.nvidia.com](https://build.nvidia.com) — free tier |
-| `OPENROUTER_API_KEY` | OpenRouter | [openrouter.ai](https://openrouter.ai/keys) — free models available |
-
-At least one of `NVIDIA_NIM_API_KEY` or `OPENROUTER_API_KEY` is required.
+At least one of `NVIDIA_NIM_API_KEY` or `OPENROUTER_API_KEY` is required for LLM features.
 
 ---
 
 ## Model Router
 
-The router picks the cheapest/fastest model appropriate for each query:
+The router classifies query complexity and selects the optimal free model:
 
-```
-Query → Classify complexity → Filter by tier → Sort by priority/health → LiteLLM call
-                                                                               │
-                                                                     Fallback chain (max 3)
-                                                                     on error or 5s timeout
-```
-
-### Tiers
-
-| Tier | Models | Used for |
-|------|--------|----------|
-| `fast` | `nvidia_nim/llama-3.1-nemotron-nano-8b-v1` | Greetings, confirmations, < 20 tokens |
+| Tier | Model | Use case |
+|------|-------|---------|
+| `fast` | `nvidia_nim/llama-3.1-nemotron-nano-8b-v1` | Greetings, confirmations, <20-token queries |
 | `reasoning` | `openrouter/meta-llama/llama-3.2-3b-instruct:free` | Multi-step, analysis, synthesis |
 
-### Adding new endpoints
-
-Edit the `_MODEL_REGISTRY` list in `echomate/model_router.py`:
-
-```python
-ModelEndpoint(
-    name="my-model",
-    provider="openrouter_free",        # or "nvidia_nim"
-    model_id="openrouter/org/model",   # LiteLLM ID
-    tier="fast",
-    priority=5,                        # lower = tried first
-)
-```
+On error or 5s timeout, the router tries up to 3 fallback models automatically.
 
 ---
 
-## MCP Server Configuration
+## Memory Architecture
 
-MCP servers are defined in `mcp_servers.json`. Each entry must have:
+| Layer | Backend | Scope | Limit |
+|-------|---------|-------|-------|
+| Short-term | In-memory list | Current session | 4000 tokens |
+| Long-term | Chroma + LlamaIndex | Persistent across sessions | Top-5 by similarity (≥0.7) |
 
-```json
-{
-  "servers": [
-    {
-      "name": "weather",
-      "command": "uvx",
-      "args": ["mcp-server-weather"],
-      "env": {
-        "WEATHER_API_KEY": "${WEATHER_API_KEY}"
-      }
-    }
-  ]
-}
-```
-
-Environment variable expansion (`${VAR}`) is supported in `env` fields.
-
-To verify a server is connected, check startup logs for:
-`MCP server 'weather' connected with N tools`.
+Data directory: `./data/chroma/` (configurable via `CHROMA_PERSIST_DIR`).
 
 ---
 
-## Memory System
-
-| Layer | Backend | Scope |
-|-------|---------|-------|
-| Short-term | In-memory sliding window | Current session (4000 tokens) |
-| Long-term | Chroma + LlamaIndex RAG | Persistent across sessions |
-
-Long-term memory is stored in `./data/chroma/` (configurable via `CHROMA_PERSIST_DIR`). If Chroma is unavailable, the agent continues with short-term memory only.
-
----
-
-## Skills Management
+## Development Commands
 
 ```bash
-# Clone LiveKit agent skills
-make setup
-
-# Pull latest from all skill repos
-make refresh-skills
-```
-
-Skills are tracked in `.agents/skills/skills-manifest.json`. To add a new skill repo:
-
-```json
-{
-  "name": "my-skills",
-  "url": "https://github.com/org/my-skills.git",
-  "local_path": ".agents/skills/my-skills",
-  "last_updated": null
-}
+make dev          # Start LiveKit agent (dev mode)
+make dev-api      # Start token server only
+make dev-app      # Start Next.js only (cd app && npm run dev)
+make dev-all      # Start all three services
+make test         # Python tests (pytest)
+make lint         # Ruff linting
+make typecheck    # mypy type check
 ```
 
 ---
 
-## Development
+## Related Documentation
 
-```bash
-make test           # Run Python tests
-make test-frontend  # Run React component tests
-make lint           # Ruff linting
-make typecheck      # mypy type checking
-```
-
----
-
-## Deployment
-
-EchoMate runs as a LiveKit worker:
-
-```bash
-# Production
-python agent.py start
-
-# Required environment variables (all from .env)
-LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET
-DEEPGRAM_API_KEY, CARTESIA_API_KEY
-NVIDIA_NIM_API_KEY or OPENROUTER_API_KEY
-```
-
-Use a process manager (systemd, supervisord, PM2) to keep the worker running. The agent handles reconnection automatically.
+- [WORKFLOW.md](WORKFLOW.md) — Section-by-section system workflow with Mermaid diagrams
+- [SETUP.md](SETUP.md) — Full installation guide, requirements, and usage instructions
+- [.env.example](.env.example) — All environment variables with descriptions
+- [app/CLAUDE.md](app/CLAUDE.md) — Frontend-specific development notes

@@ -1,0 +1,10 @@
+graph LR
+    NX[Next.js :3000] -- token request --> TS[Token Server :7880]
+    NX -- WebRTC audio --> LK[LiveKit Cloud]
+    LK -- worker connection --> AG[agent.py]
+    NX -- API calls --> NX
+    AG -- LLM calls --> NIM[NVIDIA NIM]
+    AG -- LLM calls --> OR[OpenRouter]
+    AG -- STT --> DG[Deepgram]
+    AG -- TTS --> CA[Cartesia / Deepgram]
+    NX -- code execution --> J0[Judge0 :2358]

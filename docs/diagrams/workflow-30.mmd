@@ -1,0 +1,7 @@
+graph TD
+    CENTER[Center Column] --> TOGGLE{voiceMode}
+    TOGGLE -- nvidia --> NVC[NvidiaVoiceChat\nDirect NVIDIA API]
+    TOGGLE -- livekit --> ORBS[LiquidGlassOrb\nConversationBubbles]
+
+    ORBS --> ORB_ANIM[Animated orb\nchanges with emotion state]
+    ORBS --> BUBBLES[Transcript bubbles\nfloat in/out]

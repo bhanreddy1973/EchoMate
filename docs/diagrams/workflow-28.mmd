@@ -1,0 +1,11 @@
+graph TD
+    subgraph TasksPanel["TasksPanel (top-left)"]
+        T1[Display pending tasks\nfrom localStorage / state]
+        T2[Complete task → emit onTaskComplete]
+        T3[Completed item → RecapPanel]
+    end
+
+    subgraph InsightsPanel["InsightsPanel (bottom-left)"]
+        I1[SparkLine chart\nactivity metrics]
+        I2[AI-generated insights]
+    end

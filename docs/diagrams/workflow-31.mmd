@@ -1,0 +1,32 @@
+graph TD
+    subgraph Stores["Zustand Stores"]
+        CS[careerStore\nPersisted: connectors + mcpTools]
+        CHS[chatStore\nSessions + message history]
+        COS[codingStore\nProblems + code + run results]
+    end
+
+    subgraph Context["React Context"]
+        EC[EmotionContext\nemotion + accentColor + glowColor\nsetEmotion + setMetrics]
+    end
+
+    subgraph Components["Key Consumers"]
+        SD2[SpatialDashboard]
+        CW3[CareerWorkspace]
+        CODEWD[CodingWorkspace]
+        CO2[ChatOverlay]
+        NVC2[NvidiaVoiceChat]
+        ORBS2[LiquidGlassOrb]
+        SB[StatusBar]
+    end
+
+    CS --> CW3
+    CHS --> CO2
+    COS --> CODEWD
+    EC --> SD2
+    EC --> NVC2
+    EC --> ORBS2
+    EC --> SB
+    EC --> CO2
+
+    SD2 --> EC
+    NVC2 --> EC

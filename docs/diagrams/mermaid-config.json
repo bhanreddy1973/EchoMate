@@ -1,0 +1,33 @@
+{
+  "theme": "dark",
+  "themeVariables": {
+    "background": "#0d1117",
+    "primaryColor": "#1f2937",
+    "primaryTextColor": "#e5e7eb",
+    "primaryBorderColor": "#6366f1",
+    "lineColor": "#818cf8",
+    "secondaryColor": "#1e293b",
+    "tertiaryColor": "#0f172a",
+    "fontFamily": "Inter, system-ui, sans-serif",
+    "fontSize": "14px",
+    "nodeBorder": "#6366f1",
+    "clusterBkg": "#1e293b",
+    "clusterBorder": "#4f46e5",
+    "edgeLabelBackground": "#1e293b",
+    "noteTextColor": "#e5e7eb",
+    "noteBkgColor": "#1e293b",
+    "noteBorderColor": "#6366f1",
+    "actorTextColor": "#e5e7eb",
+    "actorBkg": "#1f2937",
+    "actorBorder": "#6366f1",
+    "signalColor": "#e5e7eb",
+    "signalTextColor": "#e5e7eb",
+    "labelBoxBkgColor": "#1f2937",
+    "labelBoxBorderColor": "#6366f1",
+    "labelTextColor": "#e5e7eb",
+    "loopTextColor": "#e5e7eb",
+    "activationBorderColor": "#818cf8",
+    "activationBkgColor": "#312e81",
+    "sequenceNumberColor": "#e5e7eb"
+  }
+}

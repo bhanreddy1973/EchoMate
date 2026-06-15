@@ -1,0 +1,17 @@
+flowchart TD
+    A[masterResume JSON] --> MAP
+    B[parsedJd JSON] --> MAP
+    C[fitAnalysis] --> MAP
+    D[confirmedSuggestions] --> MAP
+    E[rejectedSuggestions] --> MAP
+
+    MAP[buildRequirementMapping\nMap required skills → evidence\nMark confirmed vs missing]
+
+    MAP --> SP2[buildSystemPrompt\nAbsolute rules:\n- Never fabricate skills\n- Use confirmed rewrites verbatim\n- Standard LaTeX packages only\n- ATS-parseable output]
+
+    SP2 --> LLM2[LLM: Generate .tex file\ntemperature=0.2\nmax_tokens=5000]
+
+    LLM2 --> CLEAN[Strip markdown fences]
+    CLEAN --> SCORE[Calculate ATS score\nCount keyword matches\nscore = min97 round keywordsFound/total × 85 + 10]
+    CLEAN --> VALIDATE[Validate confirmed suggestions\nappear in output]
+    SCORE & VALIDATE --> RETURN[Return latex + atsScore + keywordsFound + missedSuggestions]

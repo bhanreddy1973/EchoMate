@@ -1,0 +1,9 @@
+flowchart LR
+    DEV[make dev-all\nAll services running] --> EDIT[Edit code]
+    EDIT --> PYCHANGE{Python changed?}
+    EDIT --> TSCHANGE{TypeScript changed?}
+
+    PYCHANGE -- agent.py / echomate/ --> RESTART_AGENT[Restart: make dev]
+    TSCHANGE -- app/ --> HMR[Next.js HMR auto-reloads]
+
+    RESTART_AGENT & HMR --> TEST_CHANGE[Test the change]

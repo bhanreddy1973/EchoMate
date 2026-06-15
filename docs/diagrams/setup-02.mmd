@@ -1,0 +1,15 @@
+graph TD
+    subgraph Required
+        LKK[LiveKit\nwss URL + API key + secret]
+        DGK[Deepgram\nSTT API key]
+        LLM_KEY[LLM — at least one of:\nNVIDIA NIM or OpenRouter]
+    end
+
+    subgraph Optional
+        CK[Cartesia\nTTS API key]
+        WK[Weather API key\nfor MCP weather server]
+        GK[Google Calendar credentials\nfor MCP calendar server]
+        TK[Tavily API key\nfor MCP web search]
+        J0K[Judge0 — self-hosted\nno key needed]
+        OAI[OpenAI API key\nfor GPT-4o coding]
+    end

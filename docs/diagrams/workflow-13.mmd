@@ -1,0 +1,8 @@
+flowchart TD
+    A[User pastes LeetCode URL] --> B[POST /api/coding/import-url]
+    B --> C[Fetch URL content]
+    C --> D[Parse HTML\nextract title, difficulty, statement,\nexamples, constraints, tags]
+    D --> E[Return structured problem JSON]
+    E --> F[codingStore.setProblem]
+    F --> G[ProblemPanel renders statement]
+    G --> H[AICoachPanel gets problem context]

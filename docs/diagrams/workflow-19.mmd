@@ -1,0 +1,11 @@
+flowchart TD
+    A([User clicks Auto-Generate]) --> B["POST api/career/auto-generate"]
+    B --> C["Scan uploaded .tex/.md files"]
+    C --> D[Run multiple models in parallel]
+    D --> M1["Model 1: meta/llama-3.3-70b"]
+    D --> M2["Model 2: fallback model"]
+    M1 & M2 --> E["Collect modelOutputs"]
+    E --> F[Select best by ATS score]
+    F --> G["Save to resume history"]
+    G --> H["Update careerStore"]
+    H --> I["activePanel = resume"]

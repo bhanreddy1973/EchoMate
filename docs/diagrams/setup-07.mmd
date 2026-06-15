@@ -1,0 +1,10 @@
+flowchart TD
+    A([Open Spatial view]) --> B[Select NVIDIA Voice in center toggle]
+    B --> C[Click microphone button]
+    C --> D[Speak your message]
+    D --> E[Release microphone button]
+    E --> F[Audio processed by /api/voice/chat]
+    F --> G[NVIDIA Nemotron VoiceChat responds]
+    G --> H[Audio plays automatically]
+    H --> I[Transcript shown in conversation panel]
+    I --> C

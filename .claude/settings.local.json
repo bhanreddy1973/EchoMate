@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__ide__getDiagnostics",
+      "Bash(npm install *)",
+      "Bash(npx mmdc *)",
+      "Bash(node scripts/generate-diagrams.mjs)"
+    ]
+  }
+}

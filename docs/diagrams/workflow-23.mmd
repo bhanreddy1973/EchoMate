@@ -1,0 +1,22 @@
+graph TD
+    subgraph STM["Short-Term Memory"]
+        direction LR
+        S1[Message 1\nrole: user] --> S2[Message 2\nrole: assistant]
+        S2 --> S3[... up to 4000 tokens]
+    end
+
+    subgraph LTM["Long-Term Memory — Chroma + LlamaIndex"]
+        direction LR
+        C1[(Chroma Vector DB\n./data/chroma/)]
+        LI[LlamaIndex\nRAG Orchestrator]
+        C1 <--> LI
+    end
+
+    USER_INPUT([User utterance]) --> STM
+    USER_INPUT --> LI
+    LI -- semantic search top-5 similarity≥0.7 --> MEM_CTX[MemoryContext\nshort_term_messages\nlong_term_entries]
+    STM --> MEM_CTX
+    MEM_CTX --> PROMPT[System Prompt Builder]
+
+    SESSION_END([Session ends]) --> SUMM[Summarize conversation ≤500 tokens]
+    SUMM --> LI

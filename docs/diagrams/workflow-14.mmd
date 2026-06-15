@@ -1,0 +1,34 @@
+sequenceDiagram
+    participant USER as User
+    participant CE as CodeEditorPanel
+    participant API as /api/coding/run
+    participant PREP as prepareCode()
+    participant J0 as Judge0 CE
+
+    USER->>CE: Write code (Python/JS/C++/Java/Go/Rust/C#/TS)
+    USER->>CE: Click "Run" / "Run Tests"
+
+    CE->>API: POST /api/coding/run\n{code, language, stdin, testCases}
+
+    API->>PREP: prepareCode(code, language)
+    Note over PREP: Python: auto-detect Solution class\nadd stdin-parsing driver + _main()<br/>C++: extract struct definitions from comments\nadd #include + auto-generate main()<br/>Java: extract class defs + add Main.main()<br/>JS/TS: add stdin reader + function call
+
+    PREP-->>API: prepared code
+
+    API->>J0: POST /submissions?wait=true\n{source_code: base64, language_id, stdin: base64\ncpu_time_limit: 5s, memory: 256MB}
+
+    alt wait=true succeeds
+        J0-->>API: Immediate result
+    else wait=true not supported
+        J0-->>API: {token}
+        loop Poll every 1s up to 20s
+            API->>J0: GET /submissions/{token}
+            J0-->>API: {status.id, stdout, stderr}
+        end
+    end
+
+    API->>API: Decode base64 stdout/stderr\nMap status ID to string\nCompare actual vs expected output
+
+    API-->>CE: {status, stdout, stderr, time, memory, testResults[]}
+    CE->>CE: Display results + pass/fail per test case
+    CE->>CE: Save run result to codingStore

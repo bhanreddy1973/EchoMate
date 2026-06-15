@@ -1,0 +1,14 @@
+flowchart LR
+    subgraph macOS
+        M1[brew install portaudio]
+    end
+    subgraph Ubuntu_Debian["Ubuntu / Debian"]
+        L1[sudo apt-get install portaudio19-dev]
+    end
+    subgraph Windows
+        W1[portaudio wheels bundled\nno extra step needed]
+    end
+    subgraph Docker_Judge0["Docker — for Judge0 CE"]
+        D1[Docker Desktop or Docker Engine]
+        D2[docker-compose]
+    end

@@ -1,0 +1,9 @@
+flowchart TD
+    A[Code execution fails] --> B{Judge0 running?}
+    B -- No --> C[cd judge0 && docker-compose up -d]
+    B -- Yes --> D{JUDGE0_BASE_URL correct?}
+    D -- No --> E[Set JUDGE0_BASE_URL=http://localhost:2358 in .env]
+    D -- Yes --> F[curl http://localhost:2358/about]
+    F --> G{Returns JSON?}
+    G -- No --> H[Wait 30s for Judge0 to initialize]
+    G -- Yes --> I[Check browser console for API errors]

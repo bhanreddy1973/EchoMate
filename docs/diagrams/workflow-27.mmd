@@ -1,0 +1,26 @@
+sequenceDiagram
+    participant CFG as mcp_servers.json
+    participant MCP as MCPManager
+    participant SRV as MCP Server Process
+    participant TOOL as ToolRegistry
+    participant LLM3 as LLM
+
+    Note over CFG: {"servers": [{name, command, args, env}]}
+    MCP->>CFG: Read server configs at startup
+    MCP->>SRV: Spawn subprocess (uvx / npx / python)
+    Note over MCP,SRV: Connection timeout: 15s
+    SRV-->>MCP: MCP handshake
+    MCP->>SRV: List tools
+    SRV-->>MCP: [tool1, tool2, ...]
+    MCP-->>TOOL: Register tools from server
+
+    Note over MCP: Logs: "MCP server 'weather' connected with N tools"
+
+    LLM3->>TOOL: Tool call request {name, args}
+    TOOL->>MCP: dispatch_tool_call(server, tool, args)
+    MCP->>SRV: MCP call_tool {name, arguments}
+    Note over MCP,SRV: Tool call timeout: 10s
+    SRV-->>MCP: Tool result
+    MCP-->>LLM3: Result content
+
+    Note over SRV: On timeout: return error to LLM\nOn disconnect: mark unavailable\nRetry on next call

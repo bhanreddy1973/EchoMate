@@ -2,9 +2,10 @@
 
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Settings, Mic, MicOff, ChevronDown, LayoutGrid, MessageSquare, Loader2, Paperclip, Zap, Plug, X, FileText, Image as ImageIcon, ChevronRight, Plus, History, Code2, Radio, Briefcase } from "lucide-react";
+import { Sparkles, Settings, Mic, MicOff, ChevronDown, LayoutGrid, MessageSquare, Loader2, Paperclip, Zap, Plug, X, FileText, Image as ImageIcon, ChevronRight, Plus, History, Code2, Radio, Briefcase, BookOpen } from "lucide-react";
 import CodingWorkspace from "./coding/CodingWorkspace";
 import CareerWorkspace from "./career/CareerWorkspace";
+import Link from "next/link";
 import NvidiaVoiceChat from "./voice/NvidiaVoiceChat";
 import { ChatSkill, DEFAULT_SKILLS } from "./chat/SkillsPanel";
 import ConnectorsPanel, { ChatConnector, DEFAULT_CONNECTORS } from "./chat/ConnectorsPanel";
@@ -239,6 +240,14 @@ export default function SpatialDashboard() {
             {connecting ? "Connecting…" : micActive ? "Listening" : "Start Session"}
           </motion.button>
 
+          <Link href="/docs"
+            className="w-8 h-8 flex items-center justify-center rounded-xl transition-colors hover:bg-white/[0.09]"
+            style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
+            aria-label="Docs"
+            title="Documentation"
+          >
+            <BookOpen size={13} className="text-text-muted" strokeWidth={1.8} />
+          </Link>
           <button
             className="w-8 h-8 flex items-center justify-center rounded-xl transition-colors"
             style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}

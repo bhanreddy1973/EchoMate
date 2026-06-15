@@ -1,0 +1,14 @@
+sequenceDiagram
+    participant VAD as Silero VAD
+    participant AG as Agent
+    participant TTS_T as TTS Task
+    participant LLM_T as LLM Task
+
+    VAD->>AG: Speech onset during TTS playback
+    AG->>AG: Acquire _pipeline_lock
+    AG->>TTS_T: task.cancel()
+    TTS_T-->>AG: CancelledError caught
+    AG->>LLM_T: task.cancel()
+    LLM_T-->>AG: CancelledError caught
+    AG->>AG: _tts_task = None\n_llm_task = None\n_barge_in_event.set()
+    Note over AG: Pipeline reset — ready for new utterance
