@@ -5,6 +5,7 @@ import { Code2, Zap, Brain, BarChart3, ArrowUpRight } from "lucide-react";
 import { useEmotion } from "@/context/EmotionContext";
 import { useCodingStore } from "@/store/codingStore";
 import MotionGlyph from "./MotionGlyph";
+import CodingStats from "./CodingStats";
 
 export default function WelcomeState() {
   const { accentColor, glowColor } = useEmotion();
@@ -79,6 +80,9 @@ export default function WelcomeState() {
             ))}
           </div>
         </div>
+
+        {/* Coding Stats & Progress */}
+        <CodingStats />
       </div>
     </motion.div>
   );

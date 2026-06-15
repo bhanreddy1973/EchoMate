@@ -2,11 +2,28 @@ import { NextResponse } from "next/server";
 
 export async function GET() {
   const nvidiaConfigured = !!process.env.NVIDIA_NIM_API_KEY;
+  const nvidiaIntegrateConfigured = !!process.env.NVIDIA_INTEGRATE_API_KEY;
   const openaiConfigured = !!process.env.OPENAI_API_KEY;
   const geminiConfigured = !!process.env.GEMINI_API_KEY;
   const openRouterConfigured = !!process.env.OPENROUTER_API_KEY;
 
   const models = [
+    {
+      id: "minimaxai/minimax-m3",
+      name: "MiniMax-M3",
+      provider: "nvidia",
+      tier: "technical",
+      description: "Multimodal model — text, image, and video understanding",
+      configured: nvidiaConfigured || nvidiaIntegrateConfigured,
+    },
+    {
+      id: "mistralai/mistral-small-4-119b-2603",
+      name: "Mistral Small 4 119B",
+      provider: "nvidia",
+      tier: "reasoning",
+      description: "Powerful reasoning model with high effort mode",
+      configured: nvidiaConfigured || nvidiaIntegrateConfigured,
+    },
     {
       id: "meta/llama-3.1-70b-instruct",
       name: "Llama 3.1 70B",

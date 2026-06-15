@@ -336,11 +336,12 @@ export async function POST(req: NextRequest) {
     });
 
     const nvidiaKey = process.env.NVIDIA_NIM_API_KEY;
+    const nvidiaIntegrateKey = process.env.NVIDIA_INTEGRATE_API_KEY;
     const openRouterKey = process.env.OPENROUTER_API_KEY;
 
     // Determine which provider/endpoint to use based on model ID
     const modelProvider = model?.split("/")[0] || "";
-    const isNvidiaModel = ["meta", "nvidia", "mistralai", "deepseek-ai", "moonshotai", "z-ai", "google"].includes(modelProvider);
+    const isNvidiaModel = ["meta", "nvidia", "mistralai", "deepseek-ai", "moonshotai", "z-ai", "google", "minimaxai"].includes(modelProvider);
     const isOpenRouterModel = modelProvider === "openrouter";
 
     let apiUrl: string;
@@ -348,10 +349,11 @@ export async function POST(req: NextRequest) {
     let modelId: string;
     let headers: Record<string, string>;
 
-    // NVIDIA models (meta/*, nvidia/*, mistralai/*)
-    if (isNvidiaModel && nvidiaKey) {
+    // NVIDIA models (meta/*, nvidia/*, mistralai/*, minimaxai/*)
+    if (isNvidiaModel && (nvidiaKey || nvidiaIntegrateKey)) {
       apiUrl = "https://integrate.api.nvidia.com/v1/chat/completions";
-      apiKey = nvidiaKey;
+      // Use NVIDIA_INTEGRATE_API_KEY for MiniMax/Mistral models if available, or try both keys
+      apiKey = ((modelProvider === "minimaxai" || modelProvider === "mistralai") && nvidiaIntegrateKey) ? nvidiaIntegrateKey : (nvidiaKey || nvidiaIntegrateKey || "");
       modelId = model || "meta/llama-3.1-70b-instruct";
       headers = {
         "Content-Type": "application/json",
@@ -368,10 +370,10 @@ export async function POST(req: NextRequest) {
         "HTTP-Referer": "https://echomate.app",
         "X-Title": "EchoMate Coding Coach",
       };
-    } else if (nvidiaKey) {
+    } else if (nvidiaKey || nvidiaIntegrateKey) {
       // Default: try NVIDIA with a known good model
       apiUrl = "https://integrate.api.nvidia.com/v1/chat/completions";
-      apiKey = nvidiaKey;
+      apiKey = nvidiaKey || nvidiaIntegrateKey || "";
       modelId = model || "meta/llama-3.1-70b-instruct";
       headers = {
         "Content-Type": "application/json",
@@ -413,12 +415,39 @@ export async function POST(req: NextRequest) {
     // If NVIDIA returns 404 (model not found), retry with fallback model
     if (!response.ok && apiUrl.includes("nvidia.com")) {
       const status = response.status;
-      console.warn(`NVIDIA API returned ${status} for model "${modelId}"`);
+      console.warn(`NVIDIA API returned ${status} for model "${modelId}" with current key`);
+
+      // If we have an alternate NVIDIA key, try the same model with that key first
+      if (nvidiaIntegrateKey && apiKey !== nvidiaIntegrateKey) {
+        console.warn(`Retrying model "${modelId}" with NVIDIA_INTEGRATE_API_KEY`);
+        headers["Authorization"] = `Bearer ${nvidiaIntegrateKey}`;
+        response = await fetch(apiUrl, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            model: modelId,
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: userMessage },
+            ],
+            max_tokens: 2048,
+            temperature: 0.7,
+            top_p: 0.9,
+          }),
+        });
+        if (response.ok) {
+          const data = await response.json() as CoachApiResponse;
+          const aiResponse = data.choices?.[0]?.message?.content || "Sorry, I couldn't generate a response.";
+          return NextResponse.json({ response: aiResponse, model: modelId });
+        }
+      }
 
       // Try fallback NVIDIA model
       const fallbackModel = "meta/llama-3.1-70b-instruct";
       if (modelId !== fallbackModel) {
         console.warn(`Retrying with fallback model: ${fallbackModel}`);
+        // Reset to primary key for the fallback model (we know it works)
+        headers["Authorization"] = `Bearer ${nvidiaKey || nvidiaIntegrateKey}`;
         response = await fetch(apiUrl, {
           method: "POST",
           headers,
@@ -436,7 +465,12 @@ export async function POST(req: NextRequest) {
         if (response.ok) {
           const data = await response.json() as CoachApiResponse;
           const aiResponse = data.choices?.[0]?.message?.content || "Sorry, I couldn't generate a response.";
-          return NextResponse.json({ response: aiResponse, model: fallbackModel });
+          return NextResponse.json({
+            response: `⚠️ *Model "${modelId}" is unavailable for your API key. Using fallback.*\n\n${aiResponse}`,
+            model: fallbackModel,
+            requestedModel: modelId,
+            fallback: true,
+          });
         }
       }
 

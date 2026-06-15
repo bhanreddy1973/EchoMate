@@ -16,7 +16,7 @@ import { CodingDecor } from "./CodingDecor";
 
 const LAYOUT_STORAGE_KEY = "echomate:coding-layout:v2";
 const DEFAULT_LEFT_WIDTH = 40;
-const DEFAULT_EDITOR_HEIGHT = 64;
+const DEFAULT_EDITOR_HEIGHT = 70;
 const COACH_WIDTH = 380;
 const HANDLE_WIDTH = 8;
 
