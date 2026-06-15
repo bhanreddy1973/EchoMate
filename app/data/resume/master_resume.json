@@ -1,0 +1,130 @@
+{
+  "contact": {
+    "name": "BHANU REDDY CHOLAPALLI",
+    "email": "rbhanu504@gmail.com",
+    "phone": "+91-9505043644",
+    "linkedin": "linkedin.com/in/bhanu-reddy1973",
+    "github": "github.com/bhanreddy1973",
+    "website": "",
+    "location": "Bangalore, India"
+  },
+  "summary": "AI Platform Engineer with production experience building LLM-powered systems, RAG pipelines, and real-time AI data platforms at scale. Built hybrid search (BM25 + vector embeddings), LLM-driven documentation pipelines for 6,500+ tables, and production tool-calling APIs — all serving sub-200ms. Strong foundation in distributed systems (Kafka, Flink) and algorithms (LeetCode 1844, top 6\\%). %-----------EDUCATION-----------",
+  "experiences": [
+    {
+      "id": "exp-ee5ca033",
+      "company": "Software Engineer Intern",
+      "title": "Swiggy — Data Platform Engineering",
+      "location": "Bangalore, India",
+      "startDate": "Nov 2025",
+      "endDate": "Present",
+      "current": true,
+      "bullets": [
+        "Built a hybrid search system combining BM25 keyword matching + 1024-dim dense vector embeddings with Reciprocal Rank Fusion, achieving 82\\% precision@5; deployed as a production API with 6 tool-calling endpoints at sub-200ms p95 latency.",
+        "Engineered an LLM-powered documentation pipeline generating structured metadata for 6,500+ warehouse tables — context compression, self-repair JSON parsing (99.5\\% success), and multi-source enrichment (code search, usage analytics, lineage graphs).",
+        "Achieved 10x pipeline throughput by replacing 60,000 sequential queries with 6 bulk-prefetch batch queries; parallelized across 15 workers with thread-safe state management and fingerprint-based change detection to skip unchanged tables.",
+        "Architected a real-time CDC streaming pipeline using Debezium, Kafka, and Apache Flink — processing millions of change events daily with PII masking, schema evolution handling, and Insert/Update/Delete routing across production tables.",
+        "Shipped Grafana monitoring \\& alerting for AI pipeline health, embedding quality drift, and search latency — reducing incident detection from hours to minutes; delivered 2 merged PRs for connector testing and stream transformation logic."
+      ],
+      "technologies": []
+    },
+    {
+      "id": "exp-ca46a272",
+      "company": "Backend Engineer Intern",
+      "title": "Drdot — Product Engineering",
+      "location": "Certificate",
+      "startDate": "Dec 2024",
+      "endDate": "",
+      "current": false,
+      "bullets": [
+        "Built and deployed 15+ RESTful APIs (Node.js, Express.js) handling authentication, CRUD, and real-time data serving; improved API throughput by 50\\% through connection pooling and query optimization.",
+        "Achieved 85\\% code coverage with Jest unit tests and Postman integration suites; implemented JWT auth with role-based access control, rate limiting, and input sanitization preventing OWASP Top 10 vulnerabilities."
+      ],
+      "technologies": []
+    },
+    {
+      "id": "exp-bd540e03",
+      "company": "Research Assistant",
+      "title": "IIIT Kottayam — Under Prof. Dr. Bhanu Chander",
+      "location": "Publication",
+      "startDate": "Aug 2024",
+      "endDate": "",
+      "current": false,
+      "bullets": [
+        "Published peer-reviewed paper on CNN-based classification achieving 90.5\\% accuracy; applied structured pruning + INT8 quantization reducing inference latency by 3.2x for edge deployment on resource-constrained devices."
+      ],
+      "technologies": []
+    }
+  ],
+  "education": [
+    {
+      "id": "edu-1823cfa5",
+      "institution": "Indian Institute of Information Technology Kottayam",
+      "degree": "B.Tech in Computer Science and Engineering (AI \\& Data Science)",
+      "field": "B.Tech in Computer Science and Engineering (AI \\& Data Science)",
+      "startDate": "Aug 2022",
+      "endDate": "",
+      "highlights": []
+    }
+  ],
+  "skills": [
+    "RAG Pipelines",
+    "Vector Search (kNN)",
+    "Embeddings (1024-dim)",
+    "Prompt Engineering",
+    "Tool Calling (MCP)",
+    "LLM Evaluation",
+    "Python",
+    "C++",
+    "JavaScript/TypeScript",
+    "SQL",
+    "Scala",
+    "FastAPI",
+    "Node.js",
+    "Express.js",
+    "gRPC",
+    "REST APIs",
+    "WebSocket",
+    "OpenSearch",
+    "PostgreSQL",
+    "Redis",
+    "MongoDB",
+    "Snowflake",
+    "ClickHouse",
+    "Apache Kafka",
+    "Apache Flink",
+    "Debezium CDC",
+    "Event-Driven Architecture",
+    "AWS (EC2",
+    "S3",
+    "VPC",
+    "IAM)",
+    "GCP",
+    "Docker",
+    "Kubernetes",
+    "Terraform",
+    "GitHub Actions CI/CD"
+  ],
+  "projects": [
+    {
+      "id": "proj-0b751c96",
+      "name": "https://github.com/bhanreddy1973/LLM-Inference-Gateway",
+      "description": "Built a self-hostable API gateway for LLM inference with gRPC worker pools, Redis-based token-bucket rate limiting, request queuing, and per-tenant usage analytics stored in ClickHouse.",
+      "technologies": [],
+      "highlights": [
+        "Built a self-hostable API gateway for LLM inference with gRPC worker pools, Redis-based token-bucket rate limiting, request queuing, and per-tenant usage analytics stored in ClickHouse.",
+        "Designed multi-model routing architecture supporting OpenAI/Claude/local model backends with health-checked routing, automatic failover, and a Next.js monitoring dashboard for real-time observability."
+      ]
+    },
+    {
+      "id": "proj-e8e63937",
+      "name": "https://github.com/bhanreddy1973/TalkFlow",
+      "description": "Engineered a privacy-first voice-to-text system using faster-whisper (CTranslate2-optimized Whisper) for real-time speech recognition — streaming inference with VAD-based chunking, silence detection, and smart punctuation with zero cloud dependency.",
+      "technologies": [],
+      "highlights": [
+        "Engineered a privacy-first voice-to-text system using faster-whisper (CTranslate2-optimized Whisper) for real-time speech recognition — streaming inference with VAD-based chunking, silence detection, and smart punctuation with zero cloud dependency.",
+        "Implemented low-latency model serving with INT8 quantized weights, batched audio processing, and memory-efficient inference achieving real-time factor 0.3x on consumer hardware."
+      ]
+    }
+  ],
+  "certifications": []
+}

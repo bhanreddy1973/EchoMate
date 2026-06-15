@@ -1,0 +1,53 @@
+% ATS-Friendly LaTeX Resume Template
+% Designed for maximum parsability by Applicant Tracking Systems
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=0.7in]{geometry}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{titlesec}
+
+% Remove page numbers
+\pagestyle{empty}
+
+% Section formatting
+\titleformat{\section}{\large\bfseries\uppercase}{}{0em}{}[\titlerule]
+\titlespacing{\section}{0pt}{10pt}{6pt}
+
+% Tight lists
+\setlist[itemize]{leftmargin=*, nosep, topsep=0pt}
+
+\begin{document}
+
+% ─── HEADER ───
+\begin{center}
+  {\LARGE\bfseries {{NAME}}} \\[4pt]
+  {{LOCATION}} \\
+  {{EMAIL}} \quad | \quad {{PHONE}} \\
+  \href{{{LINKEDIN}}}{LinkedIn} \quad | \quad \href{{{GITHUB}}}{GitHub}
+\end{center}
+
+% ─── SUMMARY ───
+\section{Professional Summary}
+{{SUMMARY}}
+
+% ─── EXPERIENCE ───
+\section{Experience}
+{{EXPERIENCE_ENTRIES}}
+
+% ─── EDUCATION ───
+\section{Education}
+{{EDUCATION_ENTRIES}}
+
+% ─── SKILLS ───
+\section{Technical Skills}
+{{SKILLS}}
+
+% ─── PROJECTS ───
+\section{Projects}
+{{PROJECT_ENTRIES}}
+
+% ─── CERTIFICATIONS ───
+\section{Certifications}
+{{CERTIFICATION_ENTRIES}}
+
+\end{document}
