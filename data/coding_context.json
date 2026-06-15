@@ -1,0 +1,15 @@
+{
+  "currentProblem": {
+    "title": "Minimum Window Substring",
+    "difficulty": "Hard",
+    "tags": [
+      "Hash Table",
+      "String",
+      "Sliding Window"
+    ],
+    "statementMarkdown": "Given two strings `s` and `t` of lengths `m` and `n` respectively, return *the **minimum window*** ***substring*** *of* `s` *such that every character in* `t` *(**including duplicates**) is included in the window*. If there is no such substring, return *the empty string* `\"\"`.\n\nThe testcases will be generated such that the answer is **unique**.\n\n**Example 1:**\n\n```text\nInput: s = \"ADOBECODEBANC\", t = \"ABC\"\nOutput: \"BANC\"\nExplanation: The minimum window substring \"BANC\" includes 'A', 'B', and 'C' from string t.\n```\n\n**Example 2:**\n\n```text\nInput: s = \"a\", t = \"a\"\nOutput: \"a\"\nExplanation: The entire string s is the minimum window.\n```\n\n**Example 3:**\n\n```text\nInput: s = \"a\", t = \"aa\"\nOutput: \"\"\nExplanation: Both 'a's from t must be included in the window.\nSince the largest window of s only h"
+  },
+  "code": "#include <bits/stdc++.h>\nusing namespace std;\n\nclass Solution {\npublic:\n    string minWindow(string s, string t) {\n        \n    }\n};\n",
+  "language": "cpp",
+  "runResults": []
+}

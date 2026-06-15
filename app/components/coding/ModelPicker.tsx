@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, Cpu, Check, AlertCircle } from "lucide-react";
 import { useEmotion } from "@/context/EmotionContext";
 import { useCodingStore } from "@/store/codingStore";
-import { ModelProvider, ModelTier } from "@/types/coding";
+import { ModelProvider, ModelTier, AIModel } from "@/types/coding";
 import MotionGlyph from "./MotionGlyph";
 
 const PROVIDER_COLORS: Record<ModelProvider, string> = {
@@ -115,58 +115,93 @@ export default function ModelPicker() {
               </div>
             </div>
 
-            {/* Model list */}
-            <div className="max-h-[240px] overflow-y-auto py-1.5 smooth-scroll">
-              {availableModels.map((model) => {
-                const isSelected = model.id === selectedModel;
-                const providerColor = PROVIDER_COLORS[model.provider];
-                return (
-                  <button
-                    key={model.id}
-                    onClick={() => {
-                      if (model.configured) {
-                        setSelectedModel(model.id);
-                        setOpen(false);
-                      }
-                    }}
-                    disabled={!model.configured}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-white/3 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    <div
-                      className="w-5 h-5 rounded-md flex items-center justify-center shrink-0"
-                      style={{ background: `${providerColor}15` }}
-                    >
-                      <Cpu size={10} style={{ color: providerColor }} />
-                    </div>
-                    <div className="flex-1 text-left min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[11px] font-medium text-text-primary truncate">{model.name}</span>
-                        <span className="text-[8px] uppercase text-text-ghost">{model.provider}</span>
+            {/* Model list — filtered by selected tier or show all */}
+            <div className="max-h-[280px] overflow-y-auto py-1.5 smooth-scroll">
+              {selectedTier === "auto" ? (
+                // Show all models grouped by tier
+                (["reasoning", "technical", "fast"] as ModelTier[]).map((tier) => {
+                  const tierModels = availableModels.filter((m) => m.tier === tier);
+                  if (tierModels.length === 0) return null;
+                  const tierConfig = TIER_LABELS[tier];
+                  return (
+                    <div key={tier}>
+                      <div className="px-3 py-1.5 flex items-center gap-1.5">
+                        <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: tierConfig.color }} />
+                        <span className="text-[8px] uppercase tracking-wider font-semibold" style={{ color: tierConfig.color }}>
+                          {tierConfig.label}
+                        </span>
+                        <span className="text-[8px] text-text-ghost">({tierModels.length})</span>
                       </div>
-                      <p className="text-[9px] text-text-ghost truncate">{model.description}</p>
+                      {tierModels.map((model) => (
+                        <ModelRow key={model.id} model={model} isSelected={model.id === selectedModel} providerColor={PROVIDER_COLORS[model.provider]} accentColor={accentColor} onSelect={() => { setSelectedModel(model.id); setOpen(false); }} />
+                      ))}
                     </div>
-                    <div className="shrink-0 flex items-center gap-1.5">
-                      {!model.configured && (
-                        <AlertCircle size={10} className="text-yellow-400/60" />
-                      )}
-                      {isSelected && (
-                        <Check size={12} style={{ color: accentColor }} />
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
+                  );
+                })
+              ) : (
+                // Show only models matching selected tier
+                (() => {
+                  const filtered = availableModels.filter((m) => m.tier === selectedTier);
+                  return filtered.length > 0 ? (
+                    filtered.map((model) => (
+                      <ModelRow key={model.id} model={model} isSelected={model.id === selectedModel} providerColor={PROVIDER_COLORS[model.provider]} accentColor={accentColor} onSelect={() => { setSelectedModel(model.id); setOpen(false); }} />
+                    ))
+                  ) : (
+                    <p className="px-3 py-4 text-[10px] text-text-ghost text-center">No models for this tier</p>
+                  );
+                })()
+              )}
             </div>
 
             {/* Footer note */}
             <div className="px-3 py-2 border-t border-white/5">
               <p className="text-[9px] text-text-ghost">
-                Add API keys in .env to enable more providers
+                All NVIDIA models use your same API key • Add OpenAI/Gemini keys for more
               </p>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+// ─── Model row component ─────────────────────────────────────────────────────
+function ModelRow({ model, isSelected, providerColor, accentColor, onSelect }: {
+  model: { id: string; name: string; provider: string; description: string; configured: boolean };
+  isSelected: boolean;
+  providerColor: string;
+  accentColor: string;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      onClick={model.configured ? onSelect : undefined}
+      disabled={!model.configured}
+      className="w-full flex items-center gap-3 px-3 py-2 hover:bg-white/[0.03] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+      style={isSelected ? { background: `${accentColor}08` } : undefined}
+    >
+      <div
+        className="w-5 h-5 rounded-md flex items-center justify-center shrink-0"
+        style={{ background: `${providerColor}15` }}
+      >
+        <Cpu size={10} style={{ color: providerColor }} />
+      </div>
+      <div className="flex-1 text-left min-w-0">
+        <div className="flex items-center gap-1.5">
+          <span className="text-[11px] font-medium text-text-primary truncate">{model.name}</span>
+          <span className="text-[8px] uppercase text-text-ghost">{model.provider}</span>
+        </div>
+        <p className="text-[9px] text-text-ghost truncate">{model.description}</p>
+      </div>
+      <div className="shrink-0 flex items-center gap-1.5">
+        {!model.configured && (
+          <AlertCircle size={10} className="text-yellow-400/60" />
+        )}
+        {isSelected && (
+          <Check size={12} style={{ color: accentColor }} />
+        )}
+      </div>
+    </button>
   );
 }

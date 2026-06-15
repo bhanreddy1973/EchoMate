@@ -2,7 +2,7 @@
 
 import { isValidElement, useState, useRef, useEffect, type HTMLAttributes, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Check, ChevronDown, Command, Copy, Send, Sparkles, X } from "lucide-react";
+import { Check, ChevronDown, Command, Copy, Send, Sparkles, X, Volume2, Square } from "lucide-react";
 import { useEmotion } from "@/context/EmotionContext";
 import { useCodingStore } from "@/store/codingStore";
 import { COACH_ACTIONS, CoachAction } from "@/types/coding";
@@ -215,6 +215,63 @@ function CoachActionButton({
 }
 
 function AssistantResponseCard({ content, model, accentColor }: { content: string; model?: string; accentColor: string }) {
+  const [playing, setPlaying] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const handleListen = async () => {
+    if (playing) {
+      audioRef.current?.pause();
+      audioRef.current = null;
+      window.speechSynthesis?.cancel();
+      setPlaying(false);
+      return;
+    }
+
+    setPlaying(true);
+    const plainText = content
+      .replace(/```[\s\S]*?```/g, " code block ")
+      .replace(/`([^`]+)`/g, "$1")
+      .replace(/\*\*([^*]+)\*\*/g, "$1")
+      .replace(/\*([^*]+)\*/g, "$1")
+      .replace(/#+\s/g, "")
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+      .replace(/\n{2,}/g, ". ")
+      .replace(/\n/g, " ")
+      .trim()
+      .slice(0, 400);
+
+    try {
+      const res = await fetch("/api/coding/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: plainText }),
+      });
+
+      const contentType = res.headers.get("content-type") || "";
+      if (contentType.includes("audio")) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const audio = new Audio(url);
+        audioRef.current = audio;
+        audio.onended = () => { setPlaying(false); audioRef.current = null; URL.revokeObjectURL(url); };
+        audio.onerror = () => { browserTTS(plainText); };
+        await audio.play();
+        return;
+      }
+    } catch { /* fall through to browser TTS */ }
+
+    browserTTS(plainText);
+  };
+
+  const browserTTS = (text: string) => {
+    if (!window.speechSynthesis) { setPlaying(false); return; }
+    const utt = new SpeechSynthesisUtterance(text.slice(0, 300));
+    utt.rate = 1.0;
+    utt.onend = () => setPlaying(false);
+    utt.onerror = () => setPlaying(false);
+    window.speechSynthesis.speak(utt);
+  };
+
   return (
     <div
       className="relative w-full overflow-hidden rounded-[22px] p-4 text-[12px] leading-relaxed"
@@ -231,12 +288,23 @@ function AssistantResponseCard({ content, model, accentColor }: { content: strin
         animate={{ x: "100%" }}
         transition={{ duration: 1.35, ease: "easeOut" }}
       />
-      <div className="mb-3 flex items-center gap-2">
-        <MotionGlyph variant="coach" color={accentColor} size="sm" />
-        <div>
-          <p className="text-[10px] font-semibold text-text-primary">Coach Response</p>
-          <p className="text-[8px] text-text-ghost">Context-aware guidance</p>
+      <div className="mb-3 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <MotionGlyph variant="coach" color={accentColor} size="sm" />
+          <div>
+            <p className="text-[10px] font-semibold text-text-primary">Coach Response</p>
+            <p className="text-[8px] text-text-ghost">Context-aware guidance</p>
+          </div>
         </div>
+        <button
+          onClick={handleListen}
+          className="flex items-center gap-1 px-2 py-1 rounded-lg text-[9px] font-medium transition-all hover:bg-white/5"
+          style={playing ? { background: `${accentColor}15`, color: accentColor } : { color: "rgba(255,255,255,0.4)" }}
+          title={playing ? "Stop" : "Read aloud"}
+        >
+          {playing ? <Square size={9} /> : <Volume2 size={9} />}
+          {playing ? "Stop" : "Listen"}
+        </button>
       </div>
       <div className="prose prose-invert prose-sm max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_h1]:text-[23px] [&_h1]:leading-tight [&_h1]:tracking-[-0.03em] [&_h2]:text-[17px] [&_h2]:mt-4 [&_h2]:mb-2 [&_h3]:text-[14px] [&_h3]:mt-3 [&_p]:text-text-secondary [&_p]:leading-relaxed [&_li]:text-text-secondary [&_ul]:my-2 [&_ol]:my-2 [&_table]:text-[11px] [&_th]:text-text-primary [&_td]:text-text-secondary [&_blockquote]:border-l-current [&_blockquote]:text-text-muted">
         <ReactMarkdown components={{ pre: MarkdownCodeBlock, code: InlineCode }}>{content}</ReactMarkdown>

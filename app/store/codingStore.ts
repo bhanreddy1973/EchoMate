@@ -13,6 +13,7 @@ import {
   ModelTier,
   DEFAULT_STARTER_CODE,
 } from "@/types/coding";
+import { recordRun, recordProblemAttempt } from "@/lib/codingStats";
 
 type ApiTestResult = {
   input?: string;
@@ -91,89 +92,31 @@ export const useCodingStore = create<CodingStore>((set, get) => ({
   coachMessages: [],
   coachLoading: false,
   coachOpen: false,
-  selectedModel: "meta/llama-3.1-70b-instruct",
+  selectedModel: "meta/llama-3.3-70b-instruct",
   selectedTier: "auto",
   availableModels: [
-    {
-      id: "nvidia/nemotron-3-ultra-550b-a55b",
-      name: "Nemotron Ultra 550B",
-      provider: "nvidia",
-      tier: "reasoning",
-      description: "Most powerful — deep reasoning and complex problems",
-      configured: true,
-    },
-    {
-      id: "meta/llama-3.1-70b-instruct",
-      name: "Llama 3.1 70B",
-      provider: "nvidia",
-      tier: "technical",
-      description: "Best for code generation and debugging",
-      configured: true,
-    },
-    {
-      id: "nvidia/llama-3.1-nemotron-70b-instruct",
-      name: "Nemotron 70B",
-      provider: "nvidia",
-      tier: "reasoning",
-      description: "Deep reasoning and complex problem solving",
-      configured: true,
-    },
-    {
-      id: "deepseek-ai/deepseek-v4-pro",
-      name: "DeepSeek V4 Pro",
-      provider: "nvidia",
-      tier: "reasoning",
-      description: "Advanced reasoning with DeepSeek architecture",
-      configured: true,
-    },
-    {
-      id: "moonshotai/kimi-k2.6",
-      name: "Kimi K2.6",
-      provider: "nvidia",
-      tier: "technical",
-      description: "Strong coding and technical analysis",
-      configured: true,
-    },
-    {
-      id: "z-ai/glm-5.1",
-      name: "GLM 5.1",
-      provider: "nvidia",
-      tier: "technical",
-      description: "Versatile language model for code and reasoning",
-      configured: true,
-    },
-    {
-      id: "google/diffusiongemma-26b-a4b-it",
-      name: "DiffusionGemma 26B",
-      provider: "nvidia",
-      tier: "reasoning",
-      description: "Google's thinking-enabled model",
-      configured: true,
-    },
-    {
-      id: "meta/llama-3.1-8b-instruct",
-      name: "Llama 3.1 8B",
-      provider: "nvidia",
-      tier: "fast",
-      description: "Fast responses for quick hints",
-      configured: true,
-    },
-    {
-      id: "openai/gpt-4o",
-      name: "GPT-4o",
-      provider: "openai",
-      tier: "technical",
-      description: "OpenAI flagship model",
-      configured: false,
-    },
-    {
-      id: "google/gemini-pro",
-      name: "Gemini Pro",
-      provider: "gemini",
-      tier: "technical",
-      description: "Google's Gemini model",
-      configured: false,
-    },
+    // ─── Reasoning (verified ✅) ───
+    { id: "mistralai/mistral-large-3-675b-instruct-2512", name: "Mistral Large 675B", provider: "nvidia", tier: "reasoning", description: "Largest model — extreme deep reasoning", configured: true },
+    { id: "qwen/qwen3.5-397b-a17b", name: "Qwen 3.5 397B", provider: "nvidia", tier: "reasoning", description: "Massive reasoning — rivals GPT-4", configured: true },
+    { id: "nvidia/nemotron-3-ultra-550b-a55b", name: "Nemotron Ultra 550B", provider: "nvidia", tier: "reasoning", description: "NVIDIA's most powerful reasoning model", configured: true },
+    { id: "nvidia/nemotron-3-super-120b-a12b", name: "Nemotron Super 120B", provider: "nvidia", tier: "reasoning", description: "Strong reasoning with good speed", configured: true },
+    { id: "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning", name: "Nemotron Omni 30B", provider: "nvidia", tier: "reasoning", description: "Chain-of-thought step-by-step", configured: true },
+    // ─── Technical / Code (verified ✅) ───
+    { id: "qwen/qwen3.5-122b-a10b", name: "Qwen 3.5 122B", provider: "nvidia", tier: "technical", description: "Excellent at code — Qwen's best coder", configured: true },
+    { id: "mistralai/mistral-small-4-119b-2603", name: "Mistral Small 4 119B", provider: "nvidia", tier: "technical", description: "Great balance of speed + code quality", configured: true },
+    { id: "nvidia/llama-3.3-nemotron-super-49b-v1.5", name: "Nemotron Super 49B", provider: "nvidia", tier: "technical", description: "Best balance speed + quality", configured: true },
+    { id: "mistralai/mistral-nemotron", name: "Mistral Nemotron", provider: "nvidia", tier: "technical", description: "NVIDIA-tuned Mistral for code", configured: true },
+    { id: "meta/llama-3.3-70b-instruct", name: "Llama 3.3 70B", provider: "nvidia", tier: "technical", description: "Newest Llama — excellent code gen", configured: true },
+    { id: "moonshotai/kimi-k2.6", name: "Kimi K2.6", provider: "nvidia", tier: "technical", description: "Strong coding and analysis", configured: true },
+    { id: "meta/llama-4-maverick-17b-128e-instruct", name: "Llama 4 Maverick 17B", provider: "nvidia", tier: "technical", description: "Meta's latest — 128K context", configured: true },
+    // ─── Fast (verified ✅) ───
+    { id: "bytedance/seed-oss-36b-instruct", name: "Seed 36B", provider: "nvidia", tier: "fast", description: "ByteDance's fast + smart model", configured: true },
+    { id: "nvidia/nemotron-3-nano-30b-a3b", name: "Nemotron Nano 30B", provider: "nvidia", tier: "fast", description: "Fast with good quality", configured: true },
+    { id: "z-ai/glm-5.1", name: "GLM 5.1", provider: "nvidia", tier: "fast", description: "Versatile and quick", configured: true },
+    { id: "stepfun-ai/step-3.5-flash", name: "Step 3.5 Flash", provider: "nvidia", tier: "fast", description: "Ultra fast responses", configured: true },
+    { id: "nvidia/nvidia-nemotron-nano-9b-v2", name: "Nemotron Nano 9B", provider: "nvidia", tier: "fast", description: "Fast and capable", configured: true },
+    { id: "meta/llama-3.2-3b-instruct", name: "Llama 3.2 3B", provider: "nvidia", tier: "fast", description: "Instant — smallest and fastest", configured: true },
+    { id: "meta/llama-3.1-8b-instruct", name: "Llama 3.1 8B", provider: "nvidia", tier: "fast", description: "Quick and reliable", configured: true },
   ],
   activeTab: "problem",
   urlInput: "",
@@ -201,6 +144,8 @@ export const useCodingStore = create<CodingStore>((set, get) => ({
         code: problem.starterCode[get().selectedLanguage] || DEFAULT_STARTER_CODE[get().selectedLanguage],
       });
       get().startSession();
+      // Track stats
+      try { recordProblemAttempt(problem.id, false); } catch {}
     } catch (err: unknown) {
       set({ problemLoading: false, problemError: getErrorMessage(err, "Failed to import problem") });
     }
@@ -280,6 +225,8 @@ export const useCodingStore = create<CodingStore>((set, get) => ({
         isRunning: false,
         testResults: mappedTestResults.length > 0 ? mappedTestResults : s.testResults,
       }));
+      // Track stats
+      try { recordRun(currentSession?.id || "", result.status, "0"); } catch {}
     } catch (err: unknown) {
       const result: RunResult = {
         id: uuidv4(),
@@ -301,9 +248,36 @@ export const useCodingStore = create<CodingStore>((set, get) => ({
     const { code, selectedLanguage, currentSession, currentProblem } = get();
     if (!currentProblem?.examples || currentProblem.examples.length === 0) return;
 
+    // Skip test cases that can't be auto-run (class design problems, fallback text)
+    const validExamples = currentProblem.examples.filter((ex) => {
+      const input = ex.input.toLowerCase();
+      if (input.includes("see problem description")) return false;
+      if (input === "" || ex.output === "") return false;
+      // Detect class design problems: input starts with ["ClassName", "method1", ...]
+      if (ex.input.trim().startsWith("[\"") && ex.input.includes("\",")) return false;
+      return true;
+    });
+
+    if (validExamples.length === 0) {
+      // Can't auto-run — this is a class design problem
+      set({
+        testResults: currentProblem.examples.map((ex, i) => ({
+          id: `info-${i}`,
+          input: ex.input.slice(0, 200),
+          expectedOutput: ex.output.slice(0, 200),
+          actualOutput: "Class design problem — use Run button to compile. Add your own test code at the bottom.",
+          passed: false,
+          status: "pending" as any,
+          time: "0",
+          memory: "0",
+        })),
+      });
+      return;
+    }
+
     set({ isRunning: true, testResults: [] });
     try {
-      const testCases = currentProblem.examples.map((ex) => ({
+      const testCases = validExamples.map((ex) => ({
         input: ex.input,
         expectedOutput: ex.output.trim(),
       }));

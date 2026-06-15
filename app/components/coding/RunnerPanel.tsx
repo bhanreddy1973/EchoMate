@@ -120,17 +120,35 @@ export default function RunnerPanel() {
         {activeTab === "output" && <OutputView result={latestResult} isRunning={isRunning} accentColor={accentColor} />}
 
         {activeTab === "input" && (
-          <div className="h-full min-h-[150px] rounded-2xl border border-white/8 bg-black/20 p-3">
-            <div className="mb-2 flex items-center justify-between">
-              <p className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider">Custom stdin</p>
-              <span className="text-[9px] text-text-ghost">Used by the main Run button</span>
+          <div className="h-full min-h-[150px] flex flex-col gap-3">
+            <div className="flex-1 rounded-2xl border border-white/8 bg-black/20 p-3 flex flex-col">
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider">Custom stdin</p>
+                <span className="text-[9px] text-text-ghost">One argument per line, or LeetCode format</span>
+              </div>
+              <textarea
+                value={customInput}
+                onChange={(e) => setCustomInput(e.target.value)}
+                placeholder={'Enter test input, e.g.:\n"ADOBECODEBANC"\n"ABC"\n\nOr LeetCode format:\ns = "ADOBECODEBANC", t = "ABC"'}
+                className="w-full flex-1 min-h-[100px] bg-transparent text-[11px] text-text-secondary font-mono resize-none outline-none placeholder:text-text-ghost"
+              />
             </div>
-            <textarea
-              value={customInput}
-              onChange={(e) => setCustomInput(e.target.value)}
-              placeholder="Enter custom test input..."
-              className="w-full h-[calc(100%-28px)] bg-transparent text-[11px] text-text-secondary font-mono resize-none outline-none placeholder:text-text-ghost"
-            />
+            <motion.button
+              onClick={() => {
+                if (customInput.trim()) {
+                  const { runCode: run } = useCodingStore.getState();
+                  run();
+                }
+              }}
+              disabled={isRunning || !customInput.trim()}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.96 }}
+              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-[11px] font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{ background: `${accentColor}20`, color: accentColor, border: `1px solid ${accentColor}35` }}
+            >
+              <Play size={11} fill="currentColor" />
+              {isRunning ? "Running..." : "Run with Custom Input"}
+            </motion.button>
           </div>
         )}
 

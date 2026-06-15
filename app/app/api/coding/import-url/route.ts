@@ -201,27 +201,52 @@ function htmlToMarkdown(html: string): string {
 function parseExamples(html: string): { input: string; output: string; explanation?: string }[] {
   const examples: { input: string; output: string; explanation?: string }[] = [];
 
-  const cleanHtml = html.replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ");
+  // Decode HTML entities first
+  const decoded = decodeEntities(html);
+  // Strip tags but preserve structure
+  const cleanHtml = decoded
+    .replace(/<strong>/g, "")
+    .replace(/<\/strong>/g, "")
+    .replace(/<pre>/g, "\n```\n")
+    .replace(/<\/pre>/g, "\n```\n")
+    .replace(/<p>/g, "\n")
+    .replace(/<\/p>/g, "\n")
+    .replace(/<br\s*\/?>/g, "\n")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\n{3,}/g, "\n\n");
 
-  const matches = cleanHtml.matchAll(/Input:\s*(.+?)Output:\s*(.+?)(?:Explanation:\s*(.+?))?(?=Input:|Constraints:|$)/g);
+  // Split by "Example N:" markers
+  const exampleBlocks = cleanHtml.split(/Example\s*\d+\s*:/i).slice(1); // skip text before first example
 
-  for (const match of matches) {
-    examples.push({
-      input: match[1].trim(),
-      output: match[2].trim(),
-      explanation: match[3]?.trim() || undefined,
-    });
+  for (const block of exampleBlocks) {
+    // Find Input and Output within this example block
+    const inputMatch = block.match(/Input[:\s]*\n?([\s\S]*?)(?=Output)/i);
+    const outputMatch = block.match(/Output[:\s]*\n?([\s\S]*?)(?=Explanation|Example|\n\n\n|Constraints|$)/i);
+
+    if (inputMatch && outputMatch) {
+      const input = inputMatch[1].trim().replace(/```/g, "").split("\n").map(l => l.trim()).filter(Boolean).join("\n");
+      const output = outputMatch[1].trim().replace(/```/g, "").split("\n").map(l => l.trim()).filter(Boolean).join("\n");
+      
+      let explanation: string | undefined;
+      const explMatch = block.match(/Explanation[:\s]*\n?([\s\S]*?)(?=Example|\n\n\n|$)/i);
+      if (explMatch) {
+        explanation = explMatch[1].trim().split("\n").map(l => l.trim()).filter(Boolean).join("\n") || undefined;
+      }
+
+      if (input && output) {
+        examples.push({ input, output, explanation });
+      }
+    }
   }
 
-  // Fallback: try simpler parsing
+  // Fallback: try without "Example N:" markers (some problems don't have them)
   if (examples.length === 0) {
-    const inputMatches = cleanHtml.match(/Input:\s*([^\n]+)/g) || [];
-    const outputMatches = cleanHtml.match(/Output:\s*([^\n]+)/g) || [];
-
-    for (let i = 0; i < Math.min(inputMatches.length, outputMatches.length); i++) {
+    const pattern = /Input[:\s]+([^\n]+(?:\n[^\nO][^\n]*)*)\s*Output[:\s]+([^\n]+)/gi;
+    let match;
+    while ((match = pattern.exec(cleanHtml)) !== null) {
       examples.push({
-        input: inputMatches[i].replace("Input:", "").trim(),
-        output: outputMatches[i].replace("Output:", "").trim(),
+        input: match[1].trim(),
+        output: match[2].trim(),
       });
     }
   }
